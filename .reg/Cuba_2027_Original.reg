@@ -11,5 +11,6 @@ Windows Registry Editor Version 5.00
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Time Zones\Cuba Standard Time\Dynamic DST]
 "FirstEntry"=dword:000007eb
 "LastEntry"=dword:000007eb
-"2027"=hex:2c,01,00,00,00,00,00,00,c4,ff,ff,ff,00,00,0b,00,00,00,01,00,01,00,\
-  00,00,00,00,00,00,00,00,00,00,00,03,00,00,00,05,00,00,00,00,00,00,00,00,00
+"2027"=hex:2c,01,00,00,00,00,00,00,c4,ff,ff,ff,00,00,0b,00,\
+  00,00,01,00,01,00,00,00,00,00,00,00,00,00,03,00,\
+  00,00,05,00,00,00,00,00,00,00,00,00
