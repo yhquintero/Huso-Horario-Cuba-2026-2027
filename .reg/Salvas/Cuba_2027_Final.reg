@@ -1,0 +1,21 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Time Zones\Cuba Standard Time]
+"Display"="(UTC-05:00) La Habana"
+"Dlt"="Cuba Daylight Time"
+"Std"="Cuba Standard Time"
+"MapID"="-1,84"
+"TZI"=hex:2c,01,00,00,00,00,00,00,c4,ff,ff,ff,00,00,0b,00,00,00,01,00,01,00,00,\
+  00,00,00,00,00,00,00,03,00,00,00,02,00,00,00,00,00,00,00,00,00
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Time Zones\Cuba Standard Time\Dynamic DST]
+"FirstEntry"=dword:000007ea
+"LastEntry"=dword:000007eb
+
+; 2026 = horario de verano permanente (UTC-4 todo el año)
+"2026"=hex:f0,00,00,00,00,00,00,00,c4,ff,ff,ff,00,00,00,00,00,00,00,00,00,00,\
+  00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
+
+; 2027 = cambia el 7 de noviembre (primer domingo) a la 1:00
+"2027"=hex:2c,01,00,00,00,00,00,00,c4,ff,ff,ff,00,00,0b,00,00,00,01,00,01,00,\
+  00,00,00,00,00,00,00,00,03,00,00,00,02,00,00,00,00,00,00,00,00,00

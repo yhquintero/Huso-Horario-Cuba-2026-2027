@@ -1,0 +1,4 @@
+tzutil /s "Cuba Standard Time"
+# Forzar lectura de la zona
+tzutil /g
+tzutil /s "Cuba Standard Time"
