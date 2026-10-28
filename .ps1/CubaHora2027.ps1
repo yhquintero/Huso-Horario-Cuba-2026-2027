@@ -1,18 +1,17 @@
 #Requires -Version 5.1
-#Requires -RunAsAdministrator
 
 <#
 .SYNOPSIS
-    Cuba Hora 2027 - Ajuste profesional de zona horaria de Cuba
+    Cuba Hora 2027 - Ajuste y verificacion de la regla horaria de Cuba
 .DESCRIPTION
-    v1.8.0 - Menu, status bar, tema, historial, backup .reg, atajos,
-    auto-check, modo silencioso (-Silent), alerta offset.
+    v1.9.0 - Lee, decodifica y compara los valores TZI reales de Dynamic DST
+    para 2026 y 2027. La existencia de claves por si sola no se considera correcta.
 .PARAMETER Silent
     Aplica la correccion sin UI y sale.
 .PARAMETER VerifyOnly
     Solo verifica y muestra resultado en consola.
 .NOTES
-    Autor: PC Pro Tech | Version: 1.8.0
+    Autor: PC Pro Tech | Version: 1.9.0
 #>
 
 param(
@@ -29,12 +28,14 @@ Add-Type -AssemblyName System.Drawing
 # ============================================================
 
 $Script:AppName        = "Cuba Hora 2027"
-$Script:AppVersion     = "1.8.0"
+$Script:AppVersion     = "1.9.0"
 $Script:LogPath        = "$env:TEMP\CubaHora2027.log"
 $Script:SettingsPath   = "$env:APPDATA\CubaHora2027\settings.json"
 $Script:HistoryPath    = "$env:APPDATA\CubaHora2027\history.json"
 $Script:BackupDir      = "$env:APPDATA\CubaHora2027\backups"
-$Script:RegistryPath   = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Time Zones\Cuba Standard Time"
+$Script:RegistrySubKey = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Time Zones\Cuba Standard Time"
+$Script:RegistryPath = "HKLM:\$($Script:RegistrySubKey)"
+$Script:DynamicDSTSubKey = "$($Script:RegistrySubKey)\Dynamic DST"
 $Script:DynamicDSTPath = "$Script:RegistryPath\Dynamic DST"
 $Script:MutexName      = "Global\CubaHora2027_Singleton_Mutex"
 $Script:Mutex          = $null
@@ -68,11 +69,13 @@ function T {
         "Export"          = @{ ES="Exportar informe"; EN="Export report" }
         "StatusTitle"     = @{ ES="ESTADO DEL SISTEMA"; EN="SYSTEM STATUS" }
         "LogTitle"        = @{ ES="LOG DE OPERACIONES"; EN="OPERATION LOG" }
-        "ZoneOk"          = @{ ES="Zona Cuba OK"; EN="Cuba zone OK" }
+        "ZoneOk"          = @{ ES="Zona + regla en Registro OK"; EN="Zone + Registry rule OK" }
         "ZoneNo"          = @{ ES="Zona NO es Cuba"; EN="Not Cuba zone" }
+        "RulesPending"    = @{ ES="Regla DST pendiente"; EN="DST rule pending" }
+        "AllPending"      = @{ ES="Zona y regla pendientes"; EN="Zone and rule pending" }
         "SuccessMsg"      = @{ ES="Correccion aplicada.`n`nReinicia el equipo para aplicar el cambio.`n`nDeseas reiniciar ahora?"; EN="Fix applied.`n`nRestart the PC to apply the change.`n`nRestart now?" }
         "SuccessTitle"    = @{ ES="Exito"; EN="Success" }
-        "OffsetWarn"      = @{ ES="Offset actual no es -04:00. Puede faltar reinicio o reaplicar."; EN="Current offset is not -04:00. May need reboot or re-apply." }
+        "RuleWarn"        = @{ ES="La zona o la regla DST de Cuba requiere atencion."; EN="Cuba timezone or DST rule needs attention." }
     }
     if ($map.ContainsKey($Key) -and $map[$Key].ContainsKey($Script:Lang)) { return $map[$Key][$Script:Lang] }
     return $Key
@@ -151,21 +154,60 @@ function Show-History {
 # ============================================================
 
 function Backup-CubaRegistry {
+    $baseKey = $null
+    $existingKey = $null
+    $tmp = $null
     try {
-        if (-not (Test-Path $Script:BackupDir)) { New-Item -Path $Script:BackupDir -ItemType Directory -Force | Out-Null }
-        $stamp = Get-Date -Format "yyyyMMdd_HHmmss"
-        $file = Join-Path $Script:BackupDir "Cuba_TZ_Backup_$stamp.reg"
-        $tmp = [System.IO.Path]::GetTempFileName()
-        & reg.exe export "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Time Zones\Cuba Standard Time" $tmp /y 2>$null | Out-Null
-        if (Test-Path $tmp) {
-            Move-Item $tmp $file -Force
-            Write-Log "Backup REG creado: $file" "OK"
-            return $file
+        $baseKey = [Microsoft.Win32.RegistryKey]::OpenBaseKey(
+            [Microsoft.Win32.RegistryHive]::LocalMachine,
+            (Get-CubaRegistryView)
+        )
+        $existingKey = $baseKey.OpenSubKey($Script:RegistrySubKey, $false)
+        if ($null -eq $existingKey) {
+            Write-Log "No existe una definicion previa que necesite respaldo." "INFO"
+            return $true
         }
+        $existingKey.Close()
+        $existingKey = $null
+        $baseKey.Close()
+        $baseKey = $null
+
+        if (-not (Test-Path $Script:BackupDir)) {
+            New-Item -Path $Script:BackupDir -ItemType Directory -Force -ErrorAction Stop | Out-Null
+        }
+        $stamp = Get-Date -Format "yyyyMMdd_HHmmss_fff"
+        $unique = [guid]::NewGuid().ToString("N")
+        $file = Join-Path $Script:BackupDir ("Cuba_TZ_Backup_{0}_{1}.reg" -f $stamp, $unique)
+        $tmp = "${file}.tmp.reg"
+        $regArgs = @(
+            "export",
+            "HKLM\$($Script:RegistrySubKey)",
+            $tmp,
+            "/y"
+        )
+        if ([Environment]::Is64BitOperatingSystem) { $regArgs += "/reg:64" }
+        & reg.exe @regArgs 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $tmp) -or (Get-Item $tmp).Length -eq 0) {
+            throw "reg.exe export no produjo un archivo de respaldo valido."
+        }
+        $backupContent = [System.IO.File]::ReadAllText($tmp)
+        $expectedSection = "[HKEY_LOCAL_MACHINE\$($Script:RegistrySubKey)]"
+        if (-not $backupContent.StartsWith("Windows Registry Editor Version 5.00", [System.StringComparison]::Ordinal) -or
+            $backupContent -notmatch [regex]::Escape($expectedSection)) {
+            throw "El archivo exportado no contiene el encabezado y la clave esperados."
+        }
+        Move-Item -Path $tmp -Destination $file -ErrorAction Stop
+        $tmp = $null
+        Write-Log "Backup REG verificado y guardado: $file" "OK"
+        return $true
     } catch {
-        Write-Log "No se pudo crear backup REG: $_" "WARN"
+        Write-Log "No se pudo crear un respaldo valido: $_" "ERROR"
+        return $false
+    } finally {
+        if ($existingKey) { $existingKey.Close() }
+        if ($baseKey) { $baseKey.Close() }
+        if ($tmp -and (Test-Path $tmp)) { Remove-Item -Path $tmp -Force -ErrorAction SilentlyContinue }
     }
-    return $null
 }
 
 # ============================================================
@@ -239,6 +281,196 @@ function Write-Log {
 # TIMEZONE CORE
 # ============================================================
 
+function Get-CubaRegistryView {
+    if ([Environment]::Is64BitOperatingSystem) {
+        return [Microsoft.Win32.RegistryView]::Registry64
+    }
+    return [Microsoft.Win32.RegistryView]::Default
+}
+
+function Test-ByteArrayEqual {
+    param([object]$Actual, [byte[]]$Expected)
+    if ($null -eq $Actual -or $Actual -isnot [byte[]]) { return $false }
+    if ($Actual.Length -ne $Expected.Length) { return $false }
+    for ($i = 0; $i -lt $Expected.Length; $i++) {
+        if ($Actual[$i] -ne $Expected[$i]) { return $false }
+    }
+    return $true
+}
+
+function Get-TziTransitionDate {
+    param(
+        [AllowNull()][byte[]]$Tzi,
+        [int]$Year,
+        [int]$SystemTimeOffset = 12
+    )
+    if ($null -eq $Tzi -or $Tzi.Length -ne 44) { return $null }
+    if ($SystemTimeOffset -lt 12 -or $SystemTimeOffset -gt 28) { return $null }
+
+    $ruleYear = [BitConverter]::ToUInt16($Tzi, $SystemTimeOffset)
+    $month = [BitConverter]::ToUInt16($Tzi, ($SystemTimeOffset + 2))
+    $dayOfWeek = [BitConverter]::ToUInt16($Tzi, ($SystemTimeOffset + 4))
+    $dayOrWeek = [BitConverter]::ToUInt16($Tzi, ($SystemTimeOffset + 6))
+    $hour = [BitConverter]::ToUInt16($Tzi, ($SystemTimeOffset + 8))
+    $minute = [BitConverter]::ToUInt16($Tzi, ($SystemTimeOffset + 10))
+    $second = [BitConverter]::ToUInt16($Tzi, ($SystemTimeOffset + 12))
+
+    # A zero month means that this transition is deliberately absent.
+    if ($month -eq 0) { return $null }
+    if ($month -gt 12 -or $hour -gt 23 -or $minute -gt 59 -or $second -gt 59) { return $null }
+
+    if ($ruleYear -gt 0) {
+        $targetYear = [int]$ruleYear
+        $day = [int]$dayOrWeek
+    } else {
+        if ($dayOfWeek -gt 6 -or $dayOrWeek -lt 1 -or $dayOrWeek -gt 5) { return $null }
+        $targetYear = $Year
+        try {
+            $firstDay = [datetime]::new($targetYear, [int]$month, 1)
+            $firstWeekday = [int]$firstDay.DayOfWeek # Windows: Sunday = 0
+            $day = 1 + (($dayOfWeek - $firstWeekday + 7) % 7) + (7 * ($dayOrWeek - 1))
+            if ($day -gt [datetime]::DaysInMonth($targetYear, [int]$month)) { $day -= 7 }
+        } catch { return $null }
+    }
+
+    try {
+        return [datetime]::new($targetYear, [int]$month, [int]$day, [int]$hour, [int]$minute, [int]$second)
+    } catch { return $null }
+}
+
+function Get-CubaRuleAudit {
+    $state = [ordered]@{
+        IsValid = $false
+        Error = $null
+        FirstEntry = $null
+        LastEntry = $null
+        Has2026 = $false
+        Has2027 = $false
+        BaseLabelsMatch = $false
+        BaseTziMatches = $false
+        Tzi2026Matches = $false
+        Tzi2027Matches = $false
+        Bias2026 = $null
+        Bias2027 = $null
+        Transition2026 = $null
+        DaylightTransition2026 = $null
+        Transition2027 = $null
+        DaylightTransition2027 = $null
+    }
+    $baseKey = $null
+    $tzKey = $null
+    $dynamicKey = $null
+
+    try {
+        $baseKey = [Microsoft.Win32.RegistryKey]::OpenBaseKey(
+            [Microsoft.Win32.RegistryHive]::LocalMachine,
+            (Get-CubaRegistryView)
+        )
+        $tzKey = $baseKey.OpenSubKey($Script:RegistrySubKey, $false)
+        if ($null -eq $tzKey) {
+            $state.Error = "No existe la clave de zona horaria de Cuba."
+            return [pscustomobject]$state
+        }
+
+        $dynamicKey = $baseKey.OpenSubKey($Script:DynamicDSTSubKey, $false)
+        if ($null -eq $dynamicKey) {
+            $state.Error = "No existe la subclave Dynamic DST."
+            return [pscustomobject]$state
+        }
+
+        $valueNames = @($dynamicKey.GetValueNames())
+        $state.Has2026 = $valueNames -contains "2026"
+        $state.Has2027 = $valueNames -contains "2027"
+
+        if ($dynamicKey.GetValueNames() -contains "FirstEntry") {
+            $state.FirstEntry = $dynamicKey.GetValue("FirstEntry", $null)
+        }
+        if ($dynamicKey.GetValueNames() -contains "LastEntry") {
+            $state.LastEntry = $dynamicKey.GetValue("LastEntry", $null)
+        }
+
+        $baseTzi = $tzKey.GetValue("TZI", $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+        $tzi2026 = $dynamicKey.GetValue("2026", $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+        $tzi2027 = $dynamicKey.GetValue("2027", $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+
+        $state.BaseTziMatches = (Test-ByteArrayEqual $baseTzi $Script:TZI_Main)
+        $state.Tzi2026Matches = (Test-ByteArrayEqual $tzi2026 $Script:TZI_2026)
+        $state.Tzi2027Matches = (Test-ByteArrayEqual $tzi2027 $Script:TZI_2027)
+
+        $expectedBaseLabels = @{
+            Display = "(UTC-05:00) La Habana"
+            Dlt = "Cuba Daylight Time"
+            Std = "Cuba Standard Time"
+            MapID = "-1,84"
+        }
+        $state.BaseLabelsMatch = $true
+        $baseValueNames = @($tzKey.GetValueNames())
+        foreach ($labelName in $expectedBaseLabels.Keys) {
+            if ($baseValueNames -notcontains $labelName) {
+                $state.BaseLabelsMatch = $false
+                continue
+            }
+            $labelKindOk = $tzKey.GetValueKind($labelName) -eq [Microsoft.Win32.RegistryValueKind]::String
+            $labelValue = $tzKey.GetValue($labelName, $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+            if (-not $labelKindOk -or $labelValue -cne $expectedBaseLabels[$labelName]) {
+                $state.BaseLabelsMatch = $false
+            }
+        }
+
+        if ($tzi2026 -is [byte[]] -and $tzi2026.Length -eq 44) {
+            $state.Bias2026 = [BitConverter]::ToInt32($tzi2026, 0)
+            $state.Transition2026 = Get-TziTransitionDate -Tzi $tzi2026 -Year 2026 -SystemTimeOffset 12
+            $state.DaylightTransition2026 = Get-TziTransitionDate -Tzi $tzi2026 -Year 2026 -SystemTimeOffset 28
+        }
+        if ($tzi2027 -is [byte[]] -and $tzi2027.Length -eq 44) {
+            $state.Bias2027 = [BitConverter]::ToInt32($tzi2027, 0)
+            $state.Transition2027 = Get-TziTransitionDate -Tzi $tzi2027 -Year 2027 -SystemTimeOffset 12
+            $state.DaylightTransition2027 = Get-TziTransitionDate -Tzi $tzi2027 -Year 2027 -SystemTimeOffset 28
+        }
+
+        $firstKindOk = $false
+        $lastKindOk = $false
+        $baseKindOk = $false
+        $year2026KindOk = $false
+        $year2027KindOk = $false
+        if ($dynamicKey.GetValueNames() -contains "FirstEntry") {
+            $firstKindOk = $dynamicKey.GetValueKind("FirstEntry") -eq [Microsoft.Win32.RegistryValueKind]::DWord
+        }
+        if ($dynamicKey.GetValueNames() -contains "LastEntry") {
+            $lastKindOk = $dynamicKey.GetValueKind("LastEntry") -eq [Microsoft.Win32.RegistryValueKind]::DWord
+        }
+        if ($tzKey.GetValueNames() -contains "TZI") {
+            $baseKindOk = $tzKey.GetValueKind("TZI") -eq [Microsoft.Win32.RegistryValueKind]::Binary
+        }
+        if ($state.Has2026) {
+            $year2026KindOk = $dynamicKey.GetValueKind("2026") -eq [Microsoft.Win32.RegistryValueKind]::Binary
+        }
+        if ($state.Has2027) {
+            $year2027KindOk = $dynamicKey.GetValueKind("2027") -eq [Microsoft.Win32.RegistryValueKind]::Binary
+        }
+
+        $state.IsValid = (
+            $firstKindOk -and $lastKindOk -and $baseKindOk -and $year2026KindOk -and $year2027KindOk -and
+            $state.BaseLabelsMatch -and
+            ([int]$state.FirstEntry -eq 2026) -and ([int]$state.LastEntry -eq 2027) -and
+            $state.BaseTziMatches -and $state.Tzi2026Matches -and $state.Tzi2027Matches -and
+            ($null -eq $state.Transition2026) -and ($null -eq $state.DaylightTransition2026) -and
+            ($null -ne $state.Transition2027) -and ($null -eq $state.DaylightTransition2027) -and
+            ($state.Transition2027 -eq [datetime]::new(2027, 11, 7, 1, 0, 0))
+        )
+        if (-not $state.IsValid) {
+            $state.Error = "Los valores base, el rango First/LastEntry o los TZI de 2026-2027 no coinciden exactamente."
+        }
+    } catch {
+        $state.Error = $_.Exception.Message
+    } finally {
+        if ($dynamicKey) { $dynamicKey.Close() }
+        if ($tzKey) { $tzKey.Close() }
+        if ($baseKey) { $baseKey.Close() }
+    }
+    return [pscustomobject]$state
+}
+
 function Test-IsAdmin {
     $id = [Security.Principal.WindowsIdentity]::GetCurrent()
     $p = New-Object Security.Principal.WindowsPrincipal($id)
@@ -258,43 +490,60 @@ function Get-CurrentTimeZoneInfo {
     } catch { return $null }
 }
 
-function Clear-CubaDynamicDST {
-    Write-Log "Eliminando Dynamic DST..." "INFO"
-    try {
-        if (Test-Path $Script:DynamicDSTPath) {
-            Remove-Item -Path $Script:DynamicDSTPath -Recurse -Force -EA Stop
-            Write-Log "Dynamic DST eliminada." "OK"
-        } else { Write-Log "No existia Dynamic DST." "INFO" }
-        return $true
-    } catch { Write-Log "Error limpiar DST: $_" "ERROR"; return $false }
-}
-
 function Set-CubaRegistry {
-    Write-Log "Escribiendo registro Cuba 2026-2027..." "INFO"
+    Write-Log "Escribiendo regla Dynamic DST de Cuba 2026-2027..." "INFO"
+    $baseKey = $null
+    $tzKey = $null
+    $dynamicKey = $null
     try {
-        if (-not (Test-Path $Script:RegistryPath)) { New-Item -Path $Script:RegistryPath -Force | Out-Null }
-        Set-ItemProperty -Path $Script:RegistryPath -Name "Display" -Value "(UTC-05:00) La Habana" -Type String -Force
-        Set-ItemProperty -Path $Script:RegistryPath -Name "Dlt" -Value "Cuba Daylight Time" -Type String -Force
-        Set-ItemProperty -Path $Script:RegistryPath -Name "Std" -Value "Cuba Standard Time" -Type String -Force
-        Set-ItemProperty -Path $Script:RegistryPath -Name "MapID" -Value "-1,84" -Type String -Force
-        Set-ItemProperty -Path $Script:RegistryPath -Name "TZI" -Value $Script:TZI_Main -Type Binary -Force
-        Write-Log "TZI principal OK." "OK"
-        if (-not (Test-Path $Script:DynamicDSTPath)) { New-Item -Path $Script:DynamicDSTPath -Force | Out-Null }
-        Set-ItemProperty -Path $Script:DynamicDSTPath -Name "FirstEntry" -Value 0x7EA -Type DWord -Force
-        Set-ItemProperty -Path $Script:DynamicDSTPath -Name "LastEntry" -Value 0x7EB -Type DWord -Force
-        Set-ItemProperty -Path $Script:DynamicDSTPath -Name "2026" -Value $Script:TZI_2026 -Type Binary -Force
-        Write-Log "DST 2026 OK." "OK"
-        Set-ItemProperty -Path $Script:DynamicDSTPath -Name "2027" -Value $Script:TZI_2027 -Type Binary -Force
-        Write-Log "DST 2027 OK." "OK"
+        $baseKey = [Microsoft.Win32.RegistryKey]::OpenBaseKey(
+            [Microsoft.Win32.RegistryHive]::LocalMachine,
+            (Get-CubaRegistryView)
+        )
+        $tzKey = $baseKey.CreateSubKey($Script:RegistrySubKey)
+        if ($null -eq $tzKey) { throw "No se pudo abrir la clave de zona horaria para escritura." }
+        $dynamicKey = $baseKey.CreateSubKey($Script:DynamicDSTSubKey)
+        if ($null -eq $dynamicKey) { throw "No se pudo abrir la subclave Dynamic DST para escritura." }
+
+        # Overwrite only the values managed by this application; preserve other years and metadata.
+        $tzKey.SetValue("Display", "(UTC-05:00) La Habana", [Microsoft.Win32.RegistryValueKind]::String)
+        $tzKey.SetValue("Dlt", "Cuba Daylight Time", [Microsoft.Win32.RegistryValueKind]::String)
+        $tzKey.SetValue("Std", "Cuba Standard Time", [Microsoft.Win32.RegistryValueKind]::String)
+        $tzKey.SetValue("MapID", "-1,84", [Microsoft.Win32.RegistryValueKind]::String)
+        $tzKey.SetValue("TZI", [byte[]]$Script:TZI_Main, [Microsoft.Win32.RegistryValueKind]::Binary)
+        $dynamicKey.SetValue("FirstEntry", [int]2026, [Microsoft.Win32.RegistryValueKind]::DWord)
+        $dynamicKey.SetValue("LastEntry", [int]2027, [Microsoft.Win32.RegistryValueKind]::DWord)
+        $dynamicKey.SetValue("2026", [byte[]]$Script:TZI_2026, [Microsoft.Win32.RegistryValueKind]::Binary)
+        $dynamicKey.SetValue("2027", [byte[]]$Script:TZI_2027, [Microsoft.Win32.RegistryValueKind]::Binary)
+        $dynamicKey.Flush()
+        $tzKey.Flush()
+    } catch {
+        Write-Log "Error al escribir la regla de zona horaria: $_" "ERROR"
+        return $false
+    } finally {
+        if ($dynamicKey) { $dynamicKey.Close() }
+        if ($tzKey) { $tzKey.Close() }
+        if ($baseKey) { $baseKey.Close() }
+    }
+
+    $audit = Get-CubaRuleAudit
+    if ($audit.IsValid) {
+        Write-Log "Registro releido y validado: TZI 2026/2027 coinciden exactamente." "OK"
         return $true
-    } catch { Write-Log "Error registro: $_" "ERROR"; return $false }
+    }
+    Write-Log "La verificacion posterior a la escritura fallo: $($audit.Error)" "ERROR"
+    return $false
 }
 
 function Set-CubaTimeZone {
     Write-Log "tzutil /s Cuba Standard Time..." "INFO"
     try {
         $r = & tzutil.exe /s "Cuba Standard Time" 2>&1
-        if ($LASTEXITCODE -eq 0) { Write-Log "Zona establecida." "OK"; return $true }
+        if ($LASTEXITCODE -eq 0) {
+            [System.TimeZoneInfo]::ClearCachedData()
+            Write-Log "Zona establecida; cache de zona horaria renovada." "OK"
+            return $true
+        }
         Write-Log "tzutil fallo: $r" "ERROR"; return $false
     } catch { Write-Log "Excepcion tzutil: $_" "ERROR"; return $false }
 }
@@ -315,12 +564,24 @@ function Restart-TimeServices {
 
 function Apply-FullFix {
     Write-Log "===== APLICACION COMPLETA =====" "INFO"
-    $null = Backup-CubaRegistry
-    $ok = $true
-    $ok = (Clear-CubaDynamicDST) -and $ok
-    $ok = (Set-CubaRegistry) -and $ok
-    $ok = (Set-CubaTimeZone) -and $ok
-    $ok = (Restart-TimeServices) -and $ok
+    if (-not (Backup-CubaRegistry)) {
+        Write-Log "Aplicacion cancelada para no modificar el Registro sin un respaldo valido." "ERROR"
+        $Script:LastApplyOk = $false
+        Add-HistoryEntry -Success $false -Detail "Cancelada: fallo el respaldo previo"
+        Save-Settings
+        Update-StatusPanel
+        return $false
+    }
+    $ok = Set-CubaRegistry
+    if ($ok) { $ok = Set-CubaTimeZone }
+    if ($ok) { $ok = Restart-TimeServices }
+    $finalAudit = Get-CubaRuleAudit
+    if (-not $finalAudit.IsValid) {
+        Write-Log "La lectura final de Dynamic DST no coincide: $($finalAudit.Error)" "ERROR"
+        $ok = $false
+    } else {
+        Write-Log "Lectura final de Dynamic DST confirmada tras aplicar." "OK"
+    }
     $Script:LastApplyOk = $ok
     Add-HistoryEntry -Success $ok -Detail $(if ($ok) { "Aplicacion completa OK" } else { "Aplicacion con errores" })
     if ($ok) {
@@ -341,60 +602,142 @@ function Apply-FullFix {
 }
 
 function Get-VerificationReport {
+    param([AllowNull()][object]$Audit)
+    if ($null -eq $Audit) { $Audit = Get-CubaRuleAudit }
     $sb = New-Object System.Text.StringBuilder
-    [void]$sb.AppendLine("=== VERIFICACION CUBA HORA 2027 ===")
-    [void]$sb.AppendLine("Fecha: $(Get-Date -Format 'dddd dd MMMM yyyy HH:mm:ss')")
+    $audit = $Audit
+    $invariant = [System.Globalization.CultureInfo]::InvariantCulture
+    [void]$sb.AppendLine("=== VERIFICACION CUBA HORA ===")
+    [void]$sb.AppendLine("Fecha: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')")
     [void]$sb.AppendLine("Version: $($Script:AppVersion) | Tema: $($Script:CurrentTheme) | Lang: $($Script:Lang)")
     [void]$sb.AppendLine("")
+
     $info = Get-CurrentTimeZoneInfo
     if ($info) {
-        [void]$sb.AppendLine("Zona ID     : $($info.Id)")
-        [void]$sb.AppendLine("Nombre      : $($info.DisplayName)")
-        [void]$sb.AppendLine("Soporta DST : $($info.SupportsDST)")
-        [void]$sb.AppendLine("DST activo  : $($info.IsDaylightTime)")
-        [void]$sb.AppendLine("Offset      : $($info.CurrentOffset)")
+        [void]$sb.AppendLine("Zona activa ID : $($info.Id)")
+        [void]$sb.AppendLine("Nombre         : $($info.DisplayName)")
+        [void]$sb.AppendLine("Soporta DST    : $($info.SupportsDST)")
+        [void]$sb.AppendLine("DST activo ahora: $($info.IsDaylightTime)")
+        [void]$sb.AppendLine("Offset ahora   : $($info.CurrentOffset)")
+    } else {
+        [void]$sb.AppendLine("Zona activa    : no disponible")
+    }
+
+    [void]$sb.AppendLine("")
+    [void]$sb.AppendLine("--- Regla dinamica leida del Registro ---")
+    [void]$sb.AppendLine("Ruta: $Script:DynamicDSTPath")
+    [void]$sb.AppendLine("FirstEntry / LastEntry: $($audit.FirstEntry) / $($audit.LastEntry)")
+    [void]$sb.AppendLine("Entrada 2026 presente: $($audit.Has2026); TZI binario coincide: $($audit.Tzi2026Matches)")
+    [void]$sb.AppendLine("Entrada 2027 presente: $($audit.Has2027); TZI binario coincide: $($audit.Tzi2027Matches)")
+    [void]$sb.AppendLine("Etiquetas base coinciden: $($audit.BaseLabelsMatch)")
+    [void]$sb.AppendLine("TZI base coincide con la regla 2027: $($audit.BaseTziMatches)")
+
+    if ($null -ne $audit.Bias2026) {
+        $offsetSpan2026 = [TimeSpan]::FromMinutes(-[double]$audit.Bias2026)
+        $offsetSign2026 = if ($offsetSpan2026.Ticks -lt 0) { "-" } else { "+" }
+        $offset2026 = $offsetSign2026 + $offsetSpan2026.Duration().ToString("hh\:mm", $invariant)
+        [void]$sb.AppendLine("2026: Bias=$($audit.Bias2026) min; desfase base UTC$offset2026")
+    }
+    if ($null -ne $audit.Bias2027) {
+        $offsetSpan2027 = [TimeSpan]::FromMinutes(-[double]$audit.Bias2027)
+        $offsetSign2027 = if ($offsetSpan2027.Ticks -lt 0) { "-" } else { "+" }
+        $offset2027 = $offsetSign2027 + $offsetSpan2027.Duration().ToString("hh\:mm", $invariant)
+        [void]$sb.AppendLine("2027: Bias=$($audit.Bias2027) min; desfase base UTC$offset2027")
+    }
+
+    if ($null -ne $audit.Bias2026) {
+        if ($null -ne $audit.Transition2026) {
+            $transition2026 = $audit.Transition2026.ToString("yyyy-MM-dd HH:mm:ss", $invariant)
+            [void]$sb.AppendLine("2026 StandardDate leido del TZI: $transition2026 (hora local)")
+        } else {
+            [void]$sb.AppendLine("2026 StandardDate leido del TZI: sin transicion codificada")
+        }
+        if ($null -ne $audit.DaylightTransition2026) {
+            $daylight2026 = $audit.DaylightTransition2026.ToString("yyyy-MM-dd HH:mm:ss", $invariant)
+            [void]$sb.AppendLine("2026 DaylightDate leido del TZI: $daylight2026 (hora local)")
+        } else {
+            [void]$sb.AppendLine("2026 DaylightDate leido del TZI: sin transicion codificada")
+        }
+    } else {
+        [void]$sb.AppendLine("2026 StandardDate / DaylightDate: TZI no disponible o no interpretable")
+    }
+    if ($null -ne $audit.Bias2027) {
+        if ($null -ne $audit.Transition2027) {
+            $transition2027 = $audit.Transition2027.ToString("yyyy-MM-dd HH:mm:ss", $invariant)
+            [void]$sb.AppendLine("2027 StandardDate leido del TZI: $transition2027 (hora local)")
+        } else {
+            [void]$sb.AppendLine("2027 StandardDate leido del TZI: ausente o no interpretable")
+        }
+        if ($null -ne $audit.DaylightTransition2027) {
+            $daylight2027 = $audit.DaylightTransition2027.ToString("yyyy-MM-dd HH:mm:ss", $invariant)
+            [void]$sb.AppendLine("2027 DaylightDate leido del TZI: $daylight2027 (hora local)")
+        } else {
+            [void]$sb.AppendLine("2027 DaylightDate leido del TZI: sin transicion codificada")
+        }
+    } else {
+        [void]$sb.AppendLine("2027 StandardDate / DaylightDate: TZI no disponible o no interpretable")
+    }
+
+    if ($audit.IsValid) {
+        [void]$sb.AppendLine("Resultado: REGLA 2026-2027 VERIFICADA")
+    } else {
+        [void]$sb.AppendLine("Resultado: CORRECCION PENDIENTE")
+        if ($audit.Error) { [void]$sb.AppendLine("Motivo: $($audit.Error)") }
     }
     [void]$sb.AppendLine("")
-    [void]$sb.AppendLine("--- Dynamic DST ---")
-    if (Test-Path $Script:DynamicDSTPath) {
-        $first = (Get-ItemProperty $Script:DynamicDSTPath -Name FirstEntry -EA SilentlyContinue).FirstEntry
-        $last  = (Get-ItemProperty $Script:DynamicDSTPath -Name LastEntry -EA SilentlyContinue).LastEntry
-        [void]$sb.AppendLine("FirstEntry: $first | LastEntry: $last")
-        $h26 = $null -ne (Get-ItemProperty $Script:DynamicDSTPath -Name "2026" -EA SilentlyContinue)
-        $h27 = $null -ne (Get-ItemProperty $Script:DynamicDSTPath -Name "2027" -EA SilentlyContinue)
-        [void]$sb.AppendLine("2026: $h26 | 2027: $h27")
-    } else { [void]$sb.AppendLine("No existe Dynamic DST") }
-    [void]$sb.AppendLine("")
-    [void]$sb.AppendLine('Esperado: "El horario de verano finaliza el domingo, 7 de noviembre de 2027 a la 1:00."')
+    [void]$sb.AppendLine("La fecha de transicion se deriva de los datos TZI leidos ahora; no es una fecha independiente ni una certificacion oficial.")
     return $sb.ToString()
 }
 
 function Test-PostRebootHealth {
-    Write-Log "Comprobacion de salud..." "INFO"
+    Write-Log "Comprobacion de zona y regla dinamica..." "INFO"
     $info = Get-CurrentTimeZoneInfo
-    $okReg = Test-Path $Script:DynamicDSTPath
+    $audit = Get-CubaRuleAudit
     $okTz = $false
     if ($info) { $okTz = ($info.Id -like "*Cuba*" -or $info.DisplayName -like "*Cuba*" -or $info.DisplayName -like "*Habana*") }
-    $offsetOk = ($info -and $info.CurrentOffset.TotalHours -eq -4)
-    $msg = "Zona Cuba: $okTz`nDynamic DST: $okReg`nOffset -04:00: $offsetOk`nDST activo: $($info.IsDaylightTime)`n`n"
-    if ($okTz -and $okReg -and $offsetOk) {
-        $msg += "Estado: CONFIGURACION CORRECTA"
-        Write-Log "Salud: OK" "OK"
-        [System.Windows.Forms.MessageBox]::Show($msg, "Salud OK", "OK", "Information")
+
+    $msg = "Zona Cuba activa: $okTz`nRegla Dynamic DST en Registro 2026-2027: $($audit.IsValid)`n"
+    if ($info) {
+        $msg += "Offset actual (informativo): $($info.CurrentOffset)`nDST activo ahora: $($info.IsDaylightTime)`n"
+    }
+    if ($null -ne $audit.Bias2027) {
+        if ($null -ne $audit.Transition2027) {
+            $msg += "StandardDate 2027 leido: $($audit.Transition2027.ToString('yyyy-MM-dd HH:mm:ss')) hora local`n"
+        } else {
+            $msg += "StandardDate 2027: ausente o no interpretable`n"
+        }
+        if ($null -eq $audit.DaylightTransition2027) {
+            $msg += "DaylightDate 2027: sin transicion codificada`n"
+        }
+    } elseif ($audit.Has2027) {
+        $msg += "TZI 2027 presente pero no interpretable (formato distinto de 44 bytes).`n"
+    }
+    if (-not $audit.IsValid -and $audit.Error) { $msg += "Motivo: $($audit.Error)`n" }
+    $msg += "`n"
+
+    if ($okTz -and $audit.IsValid) {
+        $msg += "Estado: ZONA ACTIVA Y DATOS REGISTRALES VERIFICADOS"
+        Write-Log "Salud: zona activa y valores Dynamic DST verificados en el Registro." "OK"
+        [System.Windows.Forms.MessageBox]::Show($msg, "Verificacion registral correcta", "OK", "Information")
     } else {
-        $msg += "Estado: REVISAR"
-        Write-Log "Salud: revisar" "WARN"
-        [System.Windows.Forms.MessageBox]::Show($msg, "Salud", "OK", "Warning")
+        $msg += "Estado: CORRECCION PENDIENTE"
+        Write-Log "Salud: zona o regla pendiente de corregir." "WARN"
+        [System.Windows.Forms.MessageBox]::Show($msg, "Verificacion pendiente", "OK", "Warning")
     }
     Update-StatusPanel
 }
 
-function Test-OffsetAlert {
+function Test-TimeZoneRuleAlert {
     $info = Get-CurrentTimeZoneInfo
-    if ($info -and $info.CurrentOffset.TotalHours -ne -4) {
-        Write-Log (T "OffsetWarn") "WARN"
+    $audit = Get-CubaRuleAudit
+    $isCuba = $false
+    if ($info) {
+        $isCuba = ($info.Id -like "*Cuba*" -or $info.DisplayName -like "*Cuba*" -or $info.DisplayName -like "*Habana*")
+    }
+    if (-not $isCuba -or -not $audit.IsValid) {
+        Write-Log (T "RuleWarn") "WARN"
         if ($Script:NotifyIcon) {
-            $Script:NotifyIcon.ShowBalloonTip(4000, $Script:AppName, (T "OffsetWarn"), [System.Windows.Forms.ToolTipIcon]::Warning)
+            $Script:NotifyIcon.ShowBalloonTip(4000, $Script:AppName, (T "RuleWarn"), [System.Windows.Forms.ToolTipIcon]::Warning)
         }
     }
 }
@@ -419,7 +762,7 @@ function New-DesktopShortcut {
         $wsh = New-Object -ComObject WScript.Shell
         $sc = $wsh.CreateShortcut($lnk)
         $sc.TargetPath = "powershell.exe"
-        $sc.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$PSCommandPath`""
+        $sc.Arguments = "-NoProfile -WindowStyle Hidden -File `"$PSCommandPath`""
         $sc.WorkingDirectory = Split-Path $PSCommandPath
         $sc.Description = "Cuba Hora 2027"
         $sc.Save()
@@ -431,7 +774,7 @@ function New-DesktopShortcut {
 }
 
 function Show-About {
-    $msg = "$Script:AppName`nVersion: $($Script:AppVersion)`n`nMantener DST Cuba hasta 7 nov 2027.`n`nPreferencias: $Script:SettingsPath`nLog: $Script:LogPath`nBackups: $Script:BackupDir"
+    $msg = "$Script:AppName`nVersion: $($Script:AppVersion)`n`nVerificacion de reglas dinamicas 2026-2027.`n`nPreferencias: $Script:SettingsPath`nLog: $Script:LogPath`nBackups: $Script:BackupDir"
     [System.Windows.Forms.MessageBox]::Show($msg, "Acerca de", "OK", "Information")
 }
 
@@ -485,19 +828,31 @@ function Apply-Theme {
 }
 
 function Update-StatusPanel {
+    if (-not $Script:lblEstado -or $Script:lblEstado.IsDisposed) { return }
     $info = Get-CurrentTimeZoneInfo
+    $audit = Get-CubaRuleAudit
     if ($info) {
         $Script:lblZona.Text = $info.DisplayName
         $Script:lblOffset.Text = "Offset: $($info.CurrentOffset)   |   DST: $($info.IsDaylightTime)"
         $Script:lblId.Text = "ID: $($info.Id)"
         $isCuba = ($info.Id -like "*Cuba*" -or $info.DisplayName -like "*Cuba*" -or $info.DisplayName -like "*Habana*")
-        if ($isCuba) {
+        if ($isCuba -and $audit.IsValid) {
             $Script:lblEstado.Text = (T "ZoneOk")
             $Script:lblEstado.ForeColor = [System.Drawing.Color]::FromArgb(0,200,120)
+        } elseif ($isCuba) {
+            $Script:lblEstado.Text = (T "RulesPending")
+            $Script:lblEstado.ForeColor = [System.Drawing.Color]::FromArgb(255,180,40)
+        } elseif (-not $audit.IsValid) {
+            $Script:lblEstado.Text = (T "AllPending")
+            $Script:lblEstado.ForeColor = [System.Drawing.Color]::FromArgb(255,140,40)
         } else {
             $Script:lblEstado.Text = (T "ZoneNo")
-            $Script:lblEstado.ForeColor = [System.Drawing.Color]::FromArgb(255,140,40)
+            $Script:lblEstado.ForeColor = [System.Drawing.Color]::FromArgb(255,100,80)
         }
+    } else {
+        $Script:lblZona.Text = "Zona no disponible"
+        $Script:lblEstado.Text = (T "AllPending")
+        $Script:lblEstado.ForeColor = [System.Drawing.Color]::FromArgb(255,140,40)
     }
 }
 
@@ -565,7 +920,7 @@ function Show-MainForm {
     $Script:pnlHeader.Controls.Add($Script:lblTitle)
 
     $Script:lblSub = New-Object System.Windows.Forms.Label
-    $Script:lblSub.Text = "Mantener horario de verano hasta el 7 de noviembre de 2027"
+    $Script:lblSub.Text = "Verificacion de reglas dinamicas 2026-2027"
     $Script:lblSub.Font = New-Object System.Drawing.Font("Segoe UI", 9)
     $Script:lblSub.ForeColor = $c.TextMuted
     $Script:lblSub.Location = New-Object System.Drawing.Point(20, 38)
@@ -776,12 +1131,13 @@ function Show-MainForm {
         }
     })
     $Script:btnVerify.Add_Click({
+        Update-StatusPanel
         $report = Get-VerificationReport
         Write-Log "Verificacion." "INFO"
         $Script:txtLog.AppendText("`r`n$report`r`n")
         [System.Windows.Forms.MessageBox]::Show($report, "Verificacion", "OK", "Information")
     })
-    $Script:btnRefresh.Add_Click({ Update-StatusPanel; Test-OffsetAlert; Write-Log "Actualizado." "INFO" })
+    $Script:btnRefresh.Add_Click({ Update-StatusPanel; Test-TimeZoneRuleAlert; Write-Log "Actualizado." "INFO" })
     $Script:btnHealth.Add_Click({ Test-PostRebootHealth })
     $Script:btnOpenDate.Add_Click({ Start-Process "timedate.cpl" })
     $Script:btnRestart.Add_Click({
@@ -867,7 +1223,7 @@ function Show-MainForm {
         Write-Log "$Script:AppName v$Script:AppVersion iniciado." "INFO"
         if ($Script:LastApplyOk) {
             Write-Log "Ultima aplicacion fue exitosa. Ejecutando auto-check..." "INFO"
-            Test-OffsetAlert
+            Test-TimeZoneRuleAlert
         }
         Set-Status (T "Ready") "INFO"
     })
@@ -882,27 +1238,39 @@ function Show-MainForm {
 # ENTRY
 # ============================================================
 
-if (-not (Test-IsAdmin)) {
-    if (-not $Silent) {
-        [System.Windows.Forms.MessageBox]::Show("Necesita Administrador.", $Script:AppName, "OK", "Warning")
+if (-not (Test-IsAdmin) -and -not $VerifyOnly) {
+    if ($Silent) {
+        Write-Error "Ejecuta el modo -Silent desde una consola de PowerShell elevada; no se aplicaron cambios."
+        exit 1
     }
+    [System.Windows.Forms.MessageBox]::Show("Necesita Administrador.", $Script:AppName, "OK", "Warning")
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = "powershell.exe"
-    $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"$(if($Silent){' -Silent'})$(if($VerifyOnly){' -VerifyOnly'})"
+    $psi.Arguments = "-NoProfile -File `"$PSCommandPath`""
     $psi.Verb = "runas"
-    try { [System.Diagnostics.Process]::Start($psi) | Out-Null } catch {}
-    exit
+    try {
+        [System.Diagnostics.Process]::Start($psi) | Out-Null
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show("No se pudo elevar la aplicacion; no se aplicaron cambios.", $Script:AppName, "OK", "Error")
+        exit 1
+    }
+    exit 0
 }
 
-if (-not (Test-SingleInstance)) { exit }
+# Read-only verification runs without elevation, a mutex, or local settings/log writes.
+if ($VerifyOnly) {
+    $audit = Get-CubaRuleAudit
+    $report = Get-VerificationReport -Audit $audit
+    Write-Host $report
+    if ($audit.IsValid) { exit 0 }
+    exit 1
+}
+
+if (-not (Test-SingleInstance)) { exit 1 }
 Load-Settings
 if (-not (Test-Path $Script:LogPath)) { New-Item -Path $Script:LogPath -ItemType File -Force | Out-Null }
 
 # CLI modes
-if ($VerifyOnly) {
-    Write-Host (Get-VerificationReport)
-    exit 0
-}
 if ($Silent) {
     $ok = Apply-FullFix
     if ($ok) { Write-Host "OK: Correccion aplicada. Reinicia el equipo." } else { Write-Host "ERROR: Fallo la aplicacion." }
