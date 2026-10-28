@@ -7,13 +7,13 @@
     <meta name="referrer" content="no-referrer" />
     <meta
       name="description"
-      content="Guía independiente para revisar e instalar los perfiles de zona horaria de Cuba para Windows. Incluye pasos reversibles, alcance del Registro y verificación SHA-256 local."
+      content="Guía independiente para revisar el perfil de Registro de Cuba para Windows, la aplicación PowerShell y sus comprobaciones SHA-256."
     />
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; font-src 'self'; upgrade-insecure-requests"
     />
-    <title>Huso horario de Cuba · Guía Windows 2027</title>
+    <title>Huso horario de Cuba · Guía Windows 2026–2027</title>
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="styles.css" />
     <script src="script.js" defer></script>
@@ -72,8 +72,8 @@
             <p class="eyebrow"><span class="eyebrow-dot"></span> Guía de configuración · Windows</p>
             <h1 id="hero-title">El horario de Cuba.<br /><span>Claro, revisable, bajo control.</span></h1>
             <p class="hero-lead">
-              Una guía transparente para revisar los perfiles de Registro de este proyecto,
-              entender exactamente qué modifican y aplicarlos solo después de comprobarlos.
+              Revisa el perfil activo, el alcance de la aplicación PowerShell y los datos horarios
+              antes de modificar Windows. La aplicación distingue una corrección pendiente de los valores registrales verificados.
             </p>
             <div class="hero-actions">
               <a class="button button-primary" href="#perfiles">
@@ -101,8 +101,8 @@
 
           <aside class="timezone-card" aria-label="Resumen de la regla horaria incluida en los archivos">
             <div class="timezone-card-top">
-              <span class="card-label">RESUMEN DEL PERFIL</span>
-              <span class="year-pill"><span></span> 2027</span>
+              <span class="card-label">DATOS TZI VERSIONADOS</span>
+              <span class="year-pill"><span></span> 2026–2027</span>
             </div>
             <div class="clock-summary">
               <div class="clock-face" aria-hidden="true">
@@ -122,14 +122,14 @@
             </div>
             <div class="offset-grid">
               <div class="offset-item">
-                <span class="offset-caption"><i class="offset-dot dot-standard"></i> Hora estándar</span>
-                <strong>UTC−05:00</strong>
-                <span>Desfase base definido</span>
+                <span class="offset-caption"><i class="offset-dot dot-standard"></i> Entrada 2026</span>
+                <strong>UTC−04:00</strong>
+                <span>Sin transición codificada</span>
               </div>
               <div class="offset-item offset-daylight">
-                <span class="offset-caption"><i class="offset-dot dot-daylight"></i> Regla estacional</span>
-                <strong>UTC−04:00</strong>
-                <span>60 min sobre la hora base</span>
+                <span class="offset-caption"><i class="offset-dot dot-daylight"></i> Entrada 2027</span>
+                <strong>UTC−05:00</strong>
+                <span>StandardDate: primer domingo de noviembre</span>
               </div>
             </div>
             <div class="timezone-card-foot">
@@ -155,7 +155,7 @@
             <span class="assurance-icon icon-green" aria-hidden="true">
               <svg viewBox="0 0 22 22" fill="none"><path d="M5 3.5h8l4 4v11H5v-15Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M13 3.5v4h4M8 12h6M8 15h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
             </span>
-            <span><strong>Archivos inspeccionables</strong><small>Sin instalador ni ejecutables</small></span>
+            <span><strong>Código inspeccionable</strong><small>Sin instalador ni binarios</small></span>
           </div>
           <div class="assurance-item">
             <span class="assurance-icon icon-amber" aria-hidden="true">
@@ -195,8 +195,8 @@
               </div>
               <ul class="feature-list">
                 <li><span class="list-check" aria-hidden="true">✓</span><span>Escribe únicamente en la entrada <code>Cuba Standard Time</code> y su subclave <code>Dynamic DST</code>.</span></li>
-                <li><span class="list-check" aria-hidden="true">✓</span><span>Define el desfase base UTC−05:00 y una regla estacional UTC−04:00 codificada para 2027.</span></li>
-                <li><span class="list-check" aria-hidden="true">✓</span><span>Puede requerir confirmación de administrador porque la ruta está bajo <code>HKEY_LOCAL_MACHINE</code>.</span></li>
+                <li><span class="list-check" aria-hidden="true">✓</span><span>Incluye TZI por año: 2026 con Bias 240 y campos de transición vacíos; 2027 con Bias 300 y un StandardDate codificado.</span></li>
+                <li><span class="list-check" aria-hidden="true">✓</span><span>La aplicación también puede seleccionar la zona horaria; requiere autorización de administrador para modificar <code>HKEY_LOCAL_MACHINE</code>.</span></li>
               </ul>
             </article>
 
@@ -208,8 +208,8 @@
                 <div><span class="micro-label">NO INCLUIDO</span><h3>Lo que no hace</h3></div>
               </div>
               <ul class="feature-list">
-                <li><span class="list-cross" aria-hidden="true">—</span><span>No selecciona por sí solo la zona horaria activa ni cambia manualmente el reloj del equipo.</span></li>
-                <li><span class="list-cross" aria-hidden="true">—</span><span>No modifica la sincronización NTP, otras zonas horarias, cuentas ni archivos personales.</span></li>
+                <li><span class="list-cross" aria-hidden="true">—</span><span>Importar el archivo <code>.reg</code> no selecciona la zona activa ni cambia manualmente el reloj; la aplicación PowerShell sí puede seleccionar Cuba.</span></li>
+                <li><span class="list-cross" aria-hidden="true">—</span><span>El perfil <code>.reg</code> no configura servidores NTP. Al aplicar, la app puede reiniciar W32Time y solicitar una resincronización; también guarda logs, preferencias y respaldos locales y puede crear un acceso directo si se solicita.</span></li>
                 <li><span class="list-cross" aria-hidden="true">—</span><span>No certifica que la regla sea una decisión oficial vigente. Verifica esa información antes de instalar.</span></li>
               </ul>
             </article>
@@ -234,76 +234,76 @@
           <div class="section-heading section-heading-row">
             <div>
               <p class="section-kicker"><span>02</span> · ARCHIVOS DISPONIBLES</p>
-              <h2 id="perfiles-title">Dos perfiles.<br /><em>Un criterio claro.</em></h2>
+              <h2 id="perfiles-title">Un perfil activo.<br /><em>Una limpieza aparte.</em></h2>
             </div>
             <p class="section-intro">
-              Ambos incluyen las reglas de 2027. La diferencia está en los metadatos y en las entradas
-              históricas que guarda cada archivo. Revisa el contenido antes de escoger.
+              Usa el perfil activo solo tras revisar y confirmar que sus valores te corresponden.
+              El archivo de limpieza es una operación separada y elimina la subclave dinámica completa.
             </p>
           </div>
 
           <div class="profile-grid">
-            <article class="profile-card" data-file="Cuba_2027_Original.reg" data-sha256="EED8F9E6295F82DB3BED9C211593583CAA42B7F79DAB412E4C40CB3C8453D465">
+            <article class="profile-card profile-card-featured" data-file="2_Cuba_2027_Correcto.reg" data-sha256="7E9F4CD428AFC6D968C9824EFC11D99AE0272E0CC005E7F4E4724E1654B77B48">
               <div class="profile-topline">
-                <span class="profile-index">PERFIL 01</span>
-                <span class="profile-badge badge-neutral">Compacto</span>
-              </div>
-              <div class="file-icon file-icon-blue" aria-hidden="true">
-                <svg viewBox="0 0 32 32" fill="none"><path d="M8 3.5h10l7 7v18H8v-25Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M18 3.5v7h7M12 17h9M12 21h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-              </div>
-              <h3>Cuba_2027_Original.reg</h3>
-              <p class="profile-description">La definición mínima: datos principales de la zona y la regla dinámica de 2027.</p>
-              <ul class="profile-facts">
-                <li><span>Incluye</span><strong>Valores base + 2027</strong></li>
-                <li><span>Formato</span><strong>Texto UTF-8</strong></li>
-                <li><span>Tamaño</span><strong>712 bytes</strong></li>
-              </ul>
-              <div class="hash-block">
-                <span class="hash-label">SHA-256 publicado</span>
-                <code class="hash-value" id="hash-original">EED8F9E6295F82DB3BED9C211593583CAA42B7F79DAB412E4C40CB3C8453D465</code>
-                <button class="copy-hash" type="button" data-copy-target="hash-original" aria-label="Copiar SHA-256 del perfil compacto" hidden>
-                  <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="7" y="6" width="9" height="11" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M12 6V4.5A1.5 1.5 0 0 0 10.5 3h-6A1.5 1.5 0 0 0 3 4.5v8A1.5 1.5 0 0 0 4.5 14H7" stroke="currentColor" stroke-width="1.4"/></svg>
-                  Copiar
-                </button>
-              </div>
-              <a class="button button-outline profile-download" href=".reg/Cuba_2027_Original.reg" download>
-                Descargar perfil compacto
-                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3.5v9m0 0 3.5-3.5M10 12.5 6.5 9M4 15.5v1h12v-1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </a>
-            </article>
-
-            <article class="profile-card profile-card-featured" data-file="Cuba_2027_Completo.reg" data-sha256="1E06110839D78CC5580C08F8E66F4D88104CD244461A82279E1E963BB9C48830">
-              <div class="profile-topline">
-                <span class="profile-index">PERFIL 02</span>
-                <span class="profile-badge badge-featured"><span></span> Ampliado</span>
+                <span class="profile-index">PERFIL ACTIVO</span>
+                <span class="profile-badge badge-featured"><span></span> 2026–2027</span>
               </div>
               <div class="file-icon file-icon-green" aria-hidden="true">
                 <svg viewBox="0 0 32 32" fill="none"><path d="M8 3.5h10l7 7v18H8v-25Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M18 3.5v7h7M12 15h9M12 19h9M12 23h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
               </div>
-              <h3>Cuba_2027_Completo.reg</h3>
-              <p class="profile-description">Añade etiquetas de visualización de Windows y un conjunto ampliado de reglas históricas.</p>
+              <h3>2_Cuba_2027_Correcto.reg</h3>
+              <p class="profile-description">Define la clave de zona horaria y las entradas dinámicas 2026 y 2027. Inspecciona los valores y verifica la regla vigente antes de importarlo.</p>
               <ul class="profile-facts">
-                <li><span>Incluye</span><strong>Metadatos + 2003–2013 y 2027</strong></li>
-                <li><span>Formato</span><strong>Texto Unicode UTF-16 LE</strong></li>
-                <li><span>Tamaño</span><strong>4.8 KB · 4,920 bytes</strong></li>
+                <li><span>Incluye</span><strong>TZI base + años 2026 y 2027</strong></li>
+                <li><span>Formato</span><strong>Texto UTF-8</strong></li>
+                <li><span>Tamaño</span><strong>829 bytes</strong></li>
               </ul>
               <div class="hash-block">
                 <span class="hash-label">SHA-256 publicado</span>
-                <code class="hash-value" id="hash-completo">1E06110839D78CC5580C08F8E66F4D88104CD244461A82279E1E963BB9C48830</code>
-                <button class="copy-hash" type="button" data-copy-target="hash-completo" aria-label="Copiar SHA-256 del perfil ampliado" hidden>
+                <code class="hash-value" id="hash-correcto">7E9F4CD428AFC6D968C9824EFC11D99AE0272E0CC005E7F4E4724E1654B77B48</code>
+                <button class="copy-hash" type="button" data-copy-target="hash-correcto" aria-label="Copiar SHA-256 del perfil activo" hidden>
                   <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="7" y="6" width="9" height="11" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M12 6V4.5A1.5 1.5 0 0 0 10.5 3h-6A1.5 1.5 0 0 0 3 4.5v8A1.5 1.5 0 0 0 4.5 14H7" stroke="currentColor" stroke-width="1.4"/></svg>
                   Copiar
                 </button>
               </div>
-              <a class="button button-primary profile-download" href=".reg/Cuba_2027_Completo.reg" download>
-                Descargar perfil ampliado
+              <a class="button button-primary profile-download" href=".reg/2_Cuba_2027_Correcto.reg" download>
+                Descargar perfil activo
+                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3.5v9m0 0 3.5-3.5M10 12.5 6.5 9M4 15.5v1h12v-1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </a>
+            </article>
+
+            <article class="profile-card" data-file="1_Limpiar.reg" data-sha256="AA42596AA6EAE80298F267992DEE11A7819C6473B88E6BD879C7E1716DFC34E0">
+              <div class="profile-topline">
+                <span class="profile-index">MANTENIMIENTO EXPLÍCITO</span>
+                <span class="profile-badge badge-warning">Elimina una subclave</span>
+              </div>
+              <div class="file-icon file-icon-blue" aria-hidden="true">
+                <svg viewBox="0 0 32 32" fill="none"><path d="M8 3.5h10l7 7v18H8v-25Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M18 3.5v7h7M12 17h9M12 21h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+              </div>
+              <h3>1_Limpiar.reg</h3>
+              <p class="profile-description">Elimina por completo la subclave <code>Dynamic DST</code>. Puede quitar entradas históricas; no instala la regla ni es una reversión del perfil.</p>
+              <ul class="profile-facts">
+                <li><span>Acción</span><strong>Elimina Dynamic DST</strong></li>
+                <li><span>Formato</span><strong>Texto UTF-8</strong></li>
+                <li><span>Tamaño</span><strong>146 bytes</strong></li>
+              </ul>
+              <div class="hash-block">
+                <span class="hash-label">SHA-256 publicado</span>
+                <code class="hash-value" id="hash-limpiar">AA42596AA6EAE80298F267992DEE11A7819C6473B88E6BD879C7E1716DFC34E0</code>
+                <button class="copy-hash" type="button" data-copy-target="hash-limpiar" aria-label="Copiar SHA-256 del archivo de limpieza" hidden>
+                  <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="7" y="6" width="9" height="11" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M12 6V4.5A1.5 1.5 0 0 0 10.5 3h-6A1.5 1.5 0 0 0 3 4.5v8A1.5 1.5 0 0 0 4.5 14H7" stroke="currentColor" stroke-width="1.4"/></svg>
+                  Copiar
+                </button>
+              </div>
+              <a class="button button-outline profile-download" href=".reg/1_Limpiar.reg" download>
+                Descargar archivo de limpieza
                 <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3.5v9m0 0 3.5-3.5M10 12.5 6.5 9M4 15.5v1h12v-1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </a>
             </article>
           </div>
           <p class="profile-footnote">
             <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="1.4"/><path d="M9 8v4M9 5.4v.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-            No hay un instalador automático. Los dos archivos son importaciones del Registro: elige uno, no hace falta importar ambos.
+            Importa solo el perfil activo si así lo has decidido. No ejecutes <code>1_Limpiar.reg</code> como parte de la instalación: elimina toda la subclave <code>Dynamic DST</code> y no restaura valores anteriores.
           </p>
         </div>
       </section>
@@ -325,7 +325,7 @@
           <ol class="install-steps">
             <li class="install-step">
               <span class="step-number">01</span>
-              <div><h3>Descarga desde el repositorio</h3><p>Elige un único perfil en esta página. No uses adjuntos reenviados ni copias de procedencia desconocida.</p></div>
+              <div><h3>Descarga desde el repositorio</h3><p>Para instalar manualmente, elige <code>2_Cuba_2027_Correcto.reg</code>. No uses el archivo <code>1_Limpiar.reg</code> como instalador: elimina la subclave dinámica.</p></div>
             </li>
             <li class="install-step">
               <span class="step-number">02</span>
@@ -333,7 +333,7 @@
             </li>
             <li class="install-step">
               <span class="step-number">03</span>
-              <div><h3>Inspecciona el contenido</h3><p>Ábrelo con el Bloc de notas y confirma que las únicas secciones comienzan en la ruta de zona horaria indicada en esta guía. Cancela si ves otra ruta, una sección de eliminación o contenido inesperado.</p></div>
+              <div><h3>Inspecciona el contenido</h3><p>Abre el perfil activo con el Bloc de notas y confirma que solo escribe en la clave <code>Cuba Standard Time</code> y su subclave <code>Dynamic DST</code>. Si aparecen otras rutas, datos de eliminación o contenido inesperado, no lo importes.</p></div>
             </li>
             <li class="install-step">
               <span class="step-number">04</span>
@@ -341,7 +341,7 @@
             </li>
             <li class="install-step">
               <span class="step-number">05</span>
-              <div><h3>Selecciona la zona horaria</h3><p>Ve a <strong>Configuración → Hora e idioma → Fecha y hora</strong> y elige la entrada de Cuba, si corresponde. La importación incorpora la definición; la selección se hace por separado.</p></div>
+              <div><h3>Selecciona la zona horaria</h3><p>El perfil <code>.reg</code> solo incorpora la definición; luego selecciona Cuba en <strong>Configuración → Hora e idioma → Fecha y hora</strong>, si corresponde. La aplicación <code>.ps1</code> también selecciona la zona al aplicar; revisa su código y la política de ejecución antes de usarla.</p></div>
             </li>
             <li class="install-step">
               <span class="step-number">06</span>
@@ -372,7 +372,7 @@
               </article>
               <article class="security-check">
                 <span class="check-number">02</span>
-                <div><h3>Permisos acotados</h3><p>Los perfiles escriben en la definición horaria de Cuba y su subclave de reglas dinámicas. No contienen órdenes de instalación ni ejecutables.</p></div>
+                <div><h3>Alcance explícito</h3><p>El perfil activo escribe valores en la zona de Cuba y su subclave dinámica. El archivo de limpieza, en cambio, elimina toda esa subclave; inspecciona siempre el archivo antes de importarlo.</p></div>
               </article>
               <article class="security-check">
                 <span class="check-number">03</span>
@@ -419,11 +419,11 @@
             <div class="technical-content">
               <div>
                 <h3>Valores principales</h3>
-                <p>El perfil declara un desfase base de 300 minutos respecto a UTC y un ajuste estacional de −60 minutos. En los datos de 2027 se codifica el primer domingo de noviembre a la 01:00 para volver a hora estándar y el último domingo de marzo a las 00:00 para iniciar la regla estacional. Es una lectura de los bytes del archivo, no una confirmación oficial; comprueba la disposición vigente antes de usarla.</p>
+                <p>El archivo activo contiene TZI de 44 bytes para cada año. La entrada 2026 tiene <code>Bias=240</code> (desfase base UTC−04:00) y campos de transición vacíos, por lo que no codifica el cambio del 1 de noviembre de 2026. La entrada 2027 tiene <code>Bias=300</code> (UTC−05:00) y un <code>StandardDate</code> que decodifica al primer domingo de noviembre a la 01:00 —7 de noviembre de 2027—; su <code>DaylightDate</code> está vacío. Esto describe los bytes, no certifica el resultado efectivo en todas las versiones de Windows ni confirma una fecha oficial.</p>
               </div>
               <div>
                 <h3>Prueba automatizada de alcance</h3>
-                <p>El repositorio incluye <code>tools/verify_registry.py</code>, que valida codificación, rutas permitidas, nombres de valores, datos de 2027 y coincidencia entre los SHA-256 y esta página. Corrige y detecta errores de estructura como un TZI de 47 bytes donde Windows espera 44; no certifica el calendario oficial. Se ejecuta con <code>python tools/verify_registry.py</code>.</p>
+                <p>El repositorio incluye <code>tools/verify_registry.py</code>: valida el alcance de ambos archivos, los TZI de 2026/2027, la coincidencia de bytes con la aplicación PowerShell y los SHA-256 publicados. Es una comprobación estática; no ejecuta la app ni certifica el calendario. Se ejecuta con <code>python3 tools/verify_registry.py</code>.</p>
               </div>
             </div>
           </details>
@@ -439,12 +439,16 @@
           </div>
           <div class="faq-list">
             <details class="faq-item">
-              <summary>¿El archivo cambia automáticamente la hora del equipo?</summary>
+              <summary>¿El perfil .reg cambia automáticamente la hora del equipo?</summary>
               <p>No selecciona la zona activa ni fija manualmente la hora. Incorpora o actualiza la definición de <code>Cuba Standard Time</code>; después debes elegir la zona desde la configuración de Windows si esa es la que corresponde.</p>
             </details>
             <details class="faq-item">
               <summary>¿Esta configuración está aprobada oficialmente?</summary>
-              <p>Este es un proyecto independiente y no representa a Microsoft ni a una institución del Gobierno de Cuba. Los archivos contienen reglas propuestas para 2027; comprueba la disposición oficial vigente antes de utilizarlos.</p>
+              <p>Este es un proyecto independiente y no representa a Microsoft ni a una institución del Gobierno de Cuba. Los archivos contienen datos horarios propuestos para 2026 y 2027; comprueba la disposición oficial vigente antes de utilizarlos.</p>
+            </details>
+            <details class="faq-item">
+              <summary>¿Para qué sirve 1_Limpiar.reg?</summary>
+              <p>Elimina completamente la subclave <code>Dynamic DST</code>, incluidas entradas de años que el perfil activo no modifica. No es necesario para instalar ni para revertir el perfil y no debe importarse salvo que quieras explícitamente eliminar toda esa subclave y tengas un respaldo apropiado.</p>
             </details>
             <details class="faq-item">
               <summary>¿Cómo vuelvo atrás si ya importé el archivo?</summary>
