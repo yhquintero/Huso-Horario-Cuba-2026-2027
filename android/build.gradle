@@ -1,0 +1,4 @@
+// Build file raíz: declara la versión del Android Gradle Plugin usada por :app.
+plugins {
+    id "com.android.application" version "8.7.3" apply false
+}

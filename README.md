@@ -1,6 +1,6 @@
-# Huso horario de Cuba · Windows 2026–2027
+# Huso horario de Cuba · Windows y Android 2026–2027
 
-Guía independiente para revisar una definición de zona horaria de Cuba en Windows, entender su alcance y verificar los datos antes de aplicarlos.
+Guía independiente para revisar una definición de zona horaria de Cuba en Windows y Android, entender su alcance y verificar los datos antes de aplicarlos.
 
 > [!IMPORTANT]
 > **Proyecto independiente y no oficial.** No está afiliado a Microsoft ni a una institución del Gobierno de Cuba. Los valores publicados son datos propuestos para 2026–2027; no certifican una disposición oficial ni cómo cada versión de Windows los aplicará. Confirma la normativa vigente en una fuente oficial y prueba en un entorno adecuado antes de modificar un equipo.
@@ -13,10 +13,24 @@ Guía independiente para revisar una definición de zona horaria de Cuba en Wind
 | [`.reg/2_Cuba_2027_Correcto.reg`](.reg/2_Cuba_2027_Correcto.reg) | Perfil de Registro activo | Valores base y entradas `Dynamic DST` para 2026 y 2027. UTF-8. |
 | [`.reg/1_Limpiar.reg`](.reg/1_Limpiar.reg) | Limpieza avanzada, no instalación | Elimina por completo la subclave `Dynamic DST`; puede borrar reglas históricas. No es necesario para instalar ni revierte el perfil. |
 | [`index.html`](index.html) | Guía web | Explica el alcance y ofrece verificación SHA-256 local en el navegador. |
+| [`android/`](android/README.md) | Aplicación Android (APK) | Muestra la zona del teléfono frente a la regla del repositorio, aplica el cambio si se concede el permiso opcional y avisa antes de cada transición. |
 | [`tools/verify_registry.py`](tools/verify_registry.py) | Validador estático | Comprueba el alcance de los `.reg`, los TZI y su coherencia con los bytes y verificaciones estáticas de la aplicación. |
 | [`SECURITY.md`](SECURITY.md) | Seguridad | Precauciones, recuperación y límites de verificación. |
 
 Los archivos de `.reg/Salvas/` son respaldos o referencias históricas; no son los perfiles activos recomendados aquí.
+
+## Aplicación Android (APK)
+
+La versión para teléfonos está en [`android/`](android/README.md) y se publica como APK firmado:
+
+- **Descarga:** [última release](https://github.com/yhquintero/Huso-Horario-Cuba-2026-2027/releases/latest) o la copia versionada en [`dist/`](dist/) con su `SHA256SUMS`.
+- **Compatibilidad:** paquete `com.yhquintero.cubahora2027`, Android 5.0 (API 21) o superior. Probado con el flujo de compilación para API 34; sirve para un Samsung Galaxy S22 y para otros móviles.
+- **Qué muestra:** la zona activa, el desfase real, la hora local y la hora de Cuba según la regla de este repositorio (2026 completo en UTC−04:00; cambio a UTC−05:00 el 7 de noviembre de 2027 a la 01:00).
+- **Qué puede cambiar:** con el permiso opcional `WRITE_SECURE_SETTINGS` (se concede una vez por ADB) fija la zona y desactiva la zona automática. Sin ese permiso funciona en modo informativo y abre los ajustes del sistema.
+- **Privacidad:** no pide INTERNET, no incluye rastreadores y no envía datos. Los recordatorios son notificaciones locales.
+- **Extras:** botón para usar `America/Havana`, restauración de la zona automática y la guía completa disponible sin conexión dentro de la app.
+
+El APK se compila y verifica en CI (`.github/workflows/build-apk.yml`): se comprueba el manifiesto, la regla Java frente a los bytes de `.reg/2_Cuba_2027_Correcto.reg`, el `applicationId`, la firma y el SHA-256 publicado. La firma usa la identidad pública del proyecto documentada en [`android/keystore/README.md`](android/keystore/README.md).
 
 ## Qué codifican los datos TZI
 

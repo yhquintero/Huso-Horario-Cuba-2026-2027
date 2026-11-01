@@ -2179,3 +2179,19 @@ input:focus-visible + label {
   .faq-item:not([open]) > p { display: none; }
   a { color: #111; }
 }
+
+.android-download {
+  margin: 22px 0 12px;
+}
+
+.android-note {
+  max-width: 460px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.android-note code {
+  font-size: 12.5px;
+}

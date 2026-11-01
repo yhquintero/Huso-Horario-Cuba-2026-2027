@@ -1,4 +1,4 @@
-# Seguridad · perfiles de zona horaria de Windows
+# Seguridad · perfiles de zona horaria de Windows y aplicación Android
 
 La importación de un `.reg` y la aplicación PowerShell pueden modificar datos del Registro bajo `HKEY_LOCAL_MACHINE`. Este proyecto limita y comprueba el alcance declarado, pero las pruebas estáticas no garantizan que una regla sea oficial, que cada versión de Windows la interprete igual ni que un equipo concreto esté libre de otros riesgos.
 
@@ -16,6 +16,16 @@ El archivo [`1_Limpiar.reg`](.reg/1_Limpiar.reg) es distinto: elimina completame
 La aplicación [`.ps1/CubaHora2027.ps1`](.ps1/CubaHora2027.ps1) utiliza la vista de Registro de Windows de 64 bits cuando está disponible. Antes de escribir, exporta la definición existente; si hay una clave previa y no puede validar el archivo de respaldo, cancela la aplicación. Actualiza solo los valores que administra, conserva los demás años y vuelve a leer los valores TZI de 2026 y 2027 para comparar tipos, bytes y transición codificada. No elimina la subclave `Dynamic DST`. Al aplicar, puede reiniciar W32Time y pedir una resincronización, pero no configura servidores NTP. Escribe logs en `%TEMP%` y preferencias, historial y respaldos en `%APPDATA%\CubaHora2027`; la creación de un acceso directo es opcional.
 
 El validador [`tools/verify_registry.py`](tools/verify_registry.py) comprueba el alcance y estructura de los `.reg`, los bytes TZI, su coincidencia con los valores embebidos en la aplicación y los tamaños y SHA-256 publicados. CI comprueba la sintaxis del JavaScript y analiza el script con Windows PowerShell 5.1, sin ejecutar la aplicación ni escribir en el Registro. Estos controles ayudan a mantener la consistencia de los cambios revisados; no son una firma digital y no certifican el resultado efectivo ni la validez legal del calendario.
+
+## Aplicación Android (APK)
+
+El APK se instala fuera de Play Store. Descárgalo solo desde la release de este repositorio y compara el SHA-256 con el publicado en `dist/SHA256SUMS` antes de instalarlo.
+
+- La app **no declara INTERNET**, bloquea el tráfico en claro y no incluye bibliotecas de terceros ni rastreadores.
+- No solicita permisos peligrosos: ni ubicación, ni contactos, ni almacenamiento, ni teléfono.
+- `WRITE_SECURE_SETTINGS` y `SET_TIME_ZONE` son permisos de nivel desarrollo: una app normal no puede obtenerlos por sí sola. Solo se activan si el usuario los concede manualmente por ADB (`pm grant`), y se pueden revocar con `pm revoke`. Conceder `WRITE_SECURE_SETTINGS` permite a esa app cambiar la zona horaria del equipo; concédelo solo si entiendes esa consecuencia.
+- La identidad de firma es **pública y versionada** en `android/keystore/`. No protege secretos: su función es que Android acepte actualizaciones sobre la misma instalación. La confianza debe basarse en el código fuente y en el SHA-256 publicado, no en la firma.
+- La app no modifica la base de datos de zonas horarias del sistema (`tzdata`), no cambia la hora del reloj y no intenta eludir restricciones del fabricante.
 
 ## Antes de aplicar
 

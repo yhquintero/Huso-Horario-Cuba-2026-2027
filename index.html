@@ -52,6 +52,7 @@
           <a href="#alcance">Alcance</a>
           <a href="#perfiles">Archivos</a>
           <a href="#instalacion">Instalación</a>
+          <a href="#android">Android</a>
           <a href="#seguridad">Seguridad</a>
           <a class="nav-cta" href="#perfiles">
             Ver perfiles
@@ -351,11 +352,69 @@
         </div>
       </section>
 
+      <section class="section section-install" id="android" aria-labelledby="android-title">
+        <div class="container install-layout">
+          <div class="install-intro">
+            <p class="section-kicker"><span>04</span> · ANDROID</p>
+            <h2 id="android-title">El mismo criterio,<br /><em>también en el móvil.</em></h2>
+            <p>
+              <strong>Cuba Hora 2027</strong> es la versión Android de este proyecto. Compara la zona
+              del teléfono con la regla publicada aquí, muestra la hora de Cuba y, si se concede un
+              permiso opcional, aplica el cambio sin pasar por los ajustes.
+            </p>
+            <div class="install-callout">
+              <span class="callout-shield" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 3 19 6v5.3c0 4.2-2.9 7.7-7 9.7-4.1-2-7-5.5-7-9.7V6l7-3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <span><strong>Un solo archivo</strong><small>APK firmado, sin INTERNET y sin permisos peligrosos. Android 5.0 o superior, compatible con Galaxy S22.</small></span>
+            </div>
+            <p class="android-download">
+              <a class="button button-primary" href="https://github.com/yhquintero/Huso-Horario-Cuba-2026-2027/releases/latest">
+                Descargar el APK
+                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3.5v9m0 0 3.5-3.5M10 12.5 6.5 9M4 15.5v1h12v-1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </a>
+            </p>
+            <p class="android-note">
+              Huella SHA-256, tamaño y firma publicados en
+              <a href="https://github.com/yhquintero/Huso-Horario-Cuba-2026-2027/tree/main/dist"><code>dist/</code></a>.
+              La app no está en Play Store: se instala como aplicación externa.
+            </p>
+          </div>
+
+          <ol class="install-steps">
+            <li class="install-step">
+              <span class="step-number">01</span>
+              <div><h3>Descarga e instala</h3><p>Descarga el APK desde la release, ábrelo y, si Android lo pide, permite «Instalar aplicaciones desconocidas» para Archivos o Chrome. Play Protect puede advertir que la app no viene de Play Store.</p></div>
+            </li>
+            <li class="install-step">
+              <span class="step-number">02</span>
+              <div><h3>Revisa el estado</h3><p>La tarjeta <em>Estado del teléfono</em> muestra la zona activa, el desfase real, la hora local y la hora de Cuba según la regla: 2026 completo en UTC−04:00 y cambio a UTC−05:00 el 7 de noviembre de 2027 a la 01:00.</p></div>
+            </li>
+            <li class="install-step">
+              <span class="step-number">03</span>
+              <div><h3>Ajusta la zona</h3><p>Sin permisos adicionales, la app abre los ajustes del sistema: en un Galaxy S22, <strong>Ajustes → Administración general → Fecha y hora</strong>. Desactiva la zona automática y elige la que corresponda.</p></div>
+            </li>
+            <li class="install-step">
+              <span class="step-number">04</span>
+              <div><h3>Permiso opcional por ADB</h3><p>Para aplicar el cambio con un toque, concede una sola vez <code>WRITE_SECURE_SETTINGS</code> desde un PC con depuración USB: <code>adb shell pm grant com.yhquintero.cubahora2027 android.permission.WRITE_SECURE_SETTINGS</code>. No requiere root y se revoca con <code>pm revoke</code>.</p></div>
+            </li>
+            <li class="install-step">
+              <span class="step-number">05</span>
+              <div><h3>Recordatorios</h3><p>La app avisa 24 horas antes y en el momento de la transición. Solo envía notificaciones locales: no usa servidores ni conexión a Internet.</p></div>
+            </li>
+            <li class="install-step">
+              <span class="step-number">06</span>
+              <div><h3>Comprueba el archivo</h3><p>Compara el SHA-256 del APK con el publicado en <code>dist/SHA256SUMS</code> y verifica la firma con <code>apksigner verify --print-certs</code>. La huella del certificado del proyecto está publicada en <code>android/keystore/README.md</code>.</p></div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
       <section class="section section-security" id="seguridad" aria-labelledby="seguridad-title">
         <div class="container">
           <div class="section-heading section-heading-row security-heading">
             <div>
-              <p class="section-kicker"><span>04</span> · SEGURIDAD Y VERIFICACIÓN</p>
+              <p class="section-kicker"><span>05</span> · SEGURIDAD Y VERIFICACIÓN</p>
               <h2 id="seguridad-title">Comprueba el archivo<br /><em>antes de confiar.</em></h2>
             </div>
             <p class="section-intro">
@@ -433,7 +492,7 @@
       <section class="section section-faq" id="preguntas" aria-labelledby="faq-title">
         <div class="container faq-layout">
           <div class="faq-intro">
-            <p class="section-kicker"><span>05</span> · PREGUNTAS FRECUENTES</p>
+            <p class="section-kicker"><span>06</span> · PREGUNTAS FRECUENTES</p>
             <h2 id="faq-title">Respuestas<br /><em>sin letra pequeña.</em></h2>
             <p>Si administras un equipo de trabajo o una red institucional, confirma el procedimiento con soporte técnico antes de importar cambios al Registro.</p>
           </div>
@@ -489,7 +548,7 @@
           <p>Una explicación más clara para una configuración que merece revisarse con cuidado.</p>
         </div>
         <div class="footer-links">
-          <div><span class="footer-heading">EN ESTA PÁGINA</span><a href="#alcance">Alcance</a><a href="#perfiles">Archivos</a><a href="#instalacion">Instalación</a><a href="#seguridad">Seguridad</a></div>
+          <div><span class="footer-heading">EN ESTA PÁGINA</span><a href="#alcance">Alcance</a><a href="#perfiles">Archivos</a><a href="#instalacion">Instalación</a><a href="#android">Android</a><a href="#seguridad">Seguridad</a></div>
           <div><span class="footer-heading">PROYECTO</span><a href="README.md">Documentación</a><a href="SECURITY.md">Política de seguridad</a><a href="https://github.com/yhquintero/Huso-Horario-Cuba-2026-2027" target="_blank" rel="noopener noreferrer">Repositorio en GitHub ↗</a></div>
         </div>
       </div>
