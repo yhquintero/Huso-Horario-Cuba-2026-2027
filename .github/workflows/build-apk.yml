@@ -117,15 +117,19 @@ jobs:
               text = line.replace("%", "%25").replace("\r", "%0D")
               print("::error::" + text[:900])
 
-          marker = None
-          for index, line in enumerate(lines):
-              if "What went wrong" in line or "FAILURE:" in line:
-                  marker = index
-                  break
-          if marker is None:
-              marker = max(0, len(lines) - 40)
-          for line in lines[marker:marker + 60]:
-              if line.strip():
+          selected = [line for line in lines
+                      if ".java:" in line or "error:" in line or "symbol:" in line]
+          if not selected:
+              marker = 0
+              for index, line in enumerate(lines):
+                  if "What went wrong" in line:
+                      marker = index
+                      break
+              selected = lines[marker:marker + 25]
+          seen = set()
+          for line in selected[:45]:
+              if line.strip() and line not in seen:
+                  seen.add(line)
                   emit(line)
           PY_ANNOTATE
 
