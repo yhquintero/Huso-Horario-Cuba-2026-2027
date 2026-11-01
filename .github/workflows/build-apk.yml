@@ -10,7 +10,8 @@ on:
       - "styles.css"
       - "tools/build_android_site.py"
       - "tools/verify_android.py"
-      - "dist/**"
+      - "tools/publish_dist.py"
+      - "tools/verify_release_hashes.py"
       - ".github/workflows/build-apk.yml"
   pull_request:
     paths:
@@ -21,6 +22,8 @@ on:
       - "styles.css"
       - "tools/build_android_site.py"
       - "tools/verify_android.py"
+      - "tools/publish_dist.py"
+      - "tools/verify_release_hashes.py"
       - "dist/**"
       - ".github/workflows/build-apk.yml"
   workflow_dispatch:
@@ -66,6 +69,8 @@ jobs:
     needs: static-checks
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    permissions:
+      contents: write
     steps:
       - name: Check out source without persisting credentials
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -94,7 +99,26 @@ jobs:
           ls "$ANDROID_HOME/platforms" | tail -5
 
       - name: Build release APK
-        run: bash android/scripts/build-apk.sh
+        run: |
+          set -o pipefail
+          bash android/scripts/build-apk.sh 2>&1 | tee /tmp/build.log
+
+      - name: Report build failure as annotations
+        if: failure()
+        run: |
+          python3 - <<'PY_ANNOTATE'
+          import pathlib
+          log = pathlib.Path("/tmp/build.log")
+          if not log.is_file():
+              raise SystemExit("sin /tmp/build.log")
+          lines = log.read_text(encoding="utf-8", errors="replace").splitlines()
+          keys = ("error:", "FAILURE:", "What went wrong", "Caused by", "Execution failed",
+                  "> Task", "e: file", "Unresolved reference")
+          hits = [line for line in lines if any(key in line for key in keys)][-40:]
+          for line in hits or lines[-20:]:
+              text = line.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print("::error::" + text[:900])
+          PY_ANNOTATE
 
       - name: Verify APK and publish checksums in dist/
         run: bash android/scripts/verify-apk.sh
@@ -103,6 +127,12 @@ jobs:
         run: |
           ls -l dist/
           cat dist/SHA256SUMS
+
+      - name: Commit dist/ back to the branch
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash android/scripts/commit-dist.sh
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.4.3
