@@ -29,6 +29,13 @@ public final class ZoneController {
     /** Zona de referencia de Cuba en la base de datos IANA. */
     public static final String HAVANA_ZONE_ID = "America/Havana";
 
+    /**
+     * Clave real del ajuste de zona horaria en {@code Settings.Global}.
+     * El SDK no expone una constante pública para ella, así que se usa el
+     * nombre que escribe el sistema ({@code "time_zone"}).
+     */
+    private static final String TIME_ZONE_SETTING = "time_zone";
+
     private static final String TAG = "CubaHora";
 
     private ZoneController() {
@@ -36,12 +43,12 @@ public final class ZoneController {
 
     public static String currentZoneId(Context context) {
         try {
-            String id = Settings.Global.getString(context.getContentResolver(), Settings.Global.TIME_ZONE);
+            String id = Settings.Global.getString(context.getContentResolver(), TIME_ZONE_SETTING);
             if (id != null && id.length() > 0) {
                 return id;
             }
         } catch (Throwable error) {
-            Log.w(TAG, "No se pudo leer Settings.Global.TIME_ZONE", error);
+            Log.w(TAG, "No se pudo leer el ajuste de zona horaria", error);
         }
         return TimeZone.getDefault().getID();
     }
@@ -83,7 +90,7 @@ public final class ZoneController {
             try {
                 // Desactivar primero el automático evita que la red lo sobrescriba.
                 Settings.Global.putString(resolver, Settings.Global.AUTO_TIME_ZONE, "0");
-                Settings.Global.putString(resolver, Settings.Global.TIME_ZONE, zoneId);
+                Settings.Global.putString(resolver, TIME_ZONE_SETTING, zoneId);
             } catch (SecurityException error) {
                 Log.w(TAG, "Sin permiso para escribir la zona", error);
                 return RESULT_NO_PERMISSION;
@@ -94,7 +101,7 @@ public final class ZoneController {
 
             String written = null;
             try {
-                written = Settings.Global.getString(resolver, Settings.Global.TIME_ZONE);
+                written = Settings.Global.getString(resolver, TIME_ZONE_SETTING);
             } catch (Throwable ignored) {
                 // Se valida igualmente con el reloj efectivo.
             }
@@ -129,7 +136,7 @@ public final class ZoneController {
         }
         ContentResolver resolver = context.getContentResolver();
         try {
-            Settings.Global.putString(resolver, Settings.Global.TIME_ZONE, HAVANA_ZONE_ID);
+            Settings.Global.putString(resolver, TIME_ZONE_SETTING, HAVANA_ZONE_ID);
             Settings.Global.putString(resolver, Settings.Global.AUTO_TIME_ZONE, "1");
             TimeZone.setDefault(TimeZone.getTimeZone(HAVANA_ZONE_ID));
             return RESULT_OK;

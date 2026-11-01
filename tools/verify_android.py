@@ -257,8 +257,13 @@ def check_cuba_rules() -> None:
     for snippet, message in expected_snippets.items():
         require(snippet in source, "CubaRules.java: %s" % message)
 
-    require("America/Havana" in read(JAVA_DIR / "ZoneController.java"),
+    zone_controller = read(JAVA_DIR / "ZoneController.java")
+    require("America/Havana" in zone_controller,
             "ZoneController.java: falta la zona de referencia America/Havana")
+    require('TIME_ZONE_SETTING = "time_zone"' in zone_controller,
+            "ZoneController.java: la clave de zona horaria debe ser el ajuste real time_zone")
+    require("Settings.Global.TIME_ZONE" not in zone_controller,
+            "ZoneController.java: Settings.Global.TIME_ZONE no es API pública de Android")
     require(raw_active, "el perfil activo no debe estar vacío")
 
     main_source = read(MAIN_ACTIVITY)
