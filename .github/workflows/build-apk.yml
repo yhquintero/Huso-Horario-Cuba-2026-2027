@@ -112,12 +112,21 @@ jobs:
           if not log.is_file():
               raise SystemExit("sin /tmp/build.log")
           lines = log.read_text(encoding="utf-8", errors="replace").splitlines()
-          keys = ("error:", "FAILURE:", "What went wrong", "Caused by", "Execution failed",
-                  "> Task", "e: file", "Unresolved reference")
-          hits = [line for line in lines if any(key in line for key in keys)][-40:]
-          for line in hits or lines[-20:]:
-              text = line.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+          def emit(line):
+              text = line.replace("%", "%25").replace("\r", "%0D")
               print("::error::" + text[:900])
+
+          marker = None
+          for index, line in enumerate(lines):
+              if "What went wrong" in line or "FAILURE:" in line:
+                  marker = index
+                  break
+          if marker is None:
+              marker = max(0, len(lines) - 40)
+          for line in lines[marker:marker + 60]:
+              if line.strip():
+                  emit(line)
           PY_ANNOTATE
 
       - name: Verify APK and publish checksums in dist/
