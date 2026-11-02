@@ -33,8 +33,9 @@ if ! grep -q "package: name='com.yhquintero.cubahora2027' versionCode='1' versio
   grep "^package:" /tmp/badging.txt >&2
   exit 1
 fi
-if ! grep -q "sdkVersion:'21'" /tmp/badging.txt; then
+if ! grep -Eq "(min)?[Ss]dkVersion:'21'" /tmp/badging.txt; then
   echo "ERROR: minSdk inesperado (se esperaba 21)." >&2
+  grep -i "sdkversion" /tmp/badging.txt >&2 || true
   exit 1
 fi
 
