@@ -154,14 +154,6 @@ jobs:
                           emit(detail)
                       break
           PY_ANNOTATE
-          echo "::group::dependencias resueltas"
-          find ~/.gradle/caches/modules-2/files-2.1 -maxdepth 2 -type d 2>/dev/null | grep -iE "shizuku|annotation" | head -10
-          for aar in $(find ~/.gradle/caches -name "*.aar" 2>/dev/null | head -5); do
-            echo "== $aar"
-            unzip -l "$aar" | head -15
-          done
-          df -h / | tail -2
-          echo "::endgroup::"
           python3 - <<'PY_ANNOTATE2'
           import pathlib
 
