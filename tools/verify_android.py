@@ -71,12 +71,14 @@ FORBIDDEN_PERMISSIONS = {
 }
 EXPECTED_COMPONENTS = {
     ".MainActivity": "activity",
+    ".ManualActivity": "activity",
     ".GuideActivity": "activity",
     ".BootReceiver": "receiver",
     ".TransitionReceiver": "receiver",
 }
 JAVA_COMPONENT_FILES = {
     ".MainActivity": "MainActivity.java",
+    ".ManualActivity": "ManualActivity.java",
     ".GuideActivity": "GuideActivity.java",
     ".BootReceiver": "BootReceiver.java",
     ".TransitionReceiver": "TransitionReceiver.java",
@@ -331,6 +333,23 @@ def check_cuba_rules() -> None:
                 "MainActivity.java: no debe prometer un cambio automático (%s)" % token)
     require("OffsetGuide" in main_source,
             "MainActivity.java: debe mostrar la guía de ajuste manual")
+    require("ManualActivity" in main_source,
+            "MainActivity.java: falta el acceso al manual de aplicación")
+
+    manual_raw = read(JAVA_DIR / "ManualActivity.java")
+    manual = strip_java_comments(manual_raw)
+    for snippet in ("adb shell cmd alarm set-timezone",
+                    "settings put global auto_time_zone 0",
+                    "getprop persist.sys.timezone",
+                    "America/Santo_Domingo",
+                    "America/Bogota",
+                    "America/Havana",
+                    "Administración general"):
+        require(snippet in manual_raw,
+                "ManualActivity.java: falta el paso %r del manual" % snippet)
+    for token in ("WRITE_SECURE_SETTINGS", "applyZone"):
+        require(token not in manual,
+                "ManualActivity.java: no debe prometer un cambio desde la app (%s)" % token)
     require("openDateTimeSettings" in main_source,
             "MainActivity.java: falta el acceso a los ajustes de fecha y hora")
     require(raw_active, "el perfil activo no debe estar vacío")

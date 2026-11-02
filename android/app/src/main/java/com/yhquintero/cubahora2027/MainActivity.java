@@ -43,6 +43,7 @@ public class MainActivity extends Activity {
     private TextView requiredValue;
     private TextView autoValue;
     private TextView nextValue;
+    private TextView rulePill;
     private TextView coverageValue;
     private TextView hintValue;
     private TextView remindersHint;
@@ -168,6 +169,16 @@ public class MainActivity extends Activity {
         actions.addView(steps, fullWidth());
 
         actions.addView(Ui.spacer(this, 10f));
+        Button manual = Ui.button(this, "Manual completo: opciones y comandos", false);
+        manual.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                startActivity(new Intent(MainActivity.this, ManualActivity.class));
+            }
+        });
+        actions.addView(manual, fullWidth());
+
+        actions.addView(Ui.spacer(this, 10f));
         Button guide = Ui.button(this, "Abrir guía del proyecto", false);
         guide.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -182,16 +193,28 @@ public class MainActivity extends Activity {
 
         // Regla del proyecto
         LinearLayout rule = Ui.card(this);
-        rule.addView(Ui.text(this, "REGLA DEL PROYECTO", 11.5f, Ui.MUTED, true));
-        rule.addView(Ui.spacer(this, 8f));
-        coverageValue = addRow(rule, "Cobertura definida", "…", true);
-        nextValue = addRow(rule, "Próxima transición", "…", true);
-        rule.addView(Ui.spacer(this, 6f));
+        LinearLayout ruleTop = new LinearLayout(this);
+        ruleTop.setOrientation(LinearLayout.HORIZONTAL);
+        ruleTop.setGravity(Gravity.CENTER_VERTICAL);
+        ruleTop.addView(Ui.text(this, "REGLA DEL PROYECTO", 11.5f, Ui.MUTED, true),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        rulePill = Ui.pill(this, "…", Ui.BLUE_PALE, Ui.BLUE_DARK);
+        ruleTop.addView(rulePill);
+        rule.addView(ruleTop);
+
+        rule.addView(Ui.spacer(this, 12f));
+        coverageValue = addBlock(rule, "Cobertura definida");
+        nextValue = addBlock(rule, "Próxima transición");
+
         TextView ruleText = Ui.text(this,
                 "2026 completo en UTC−04:00 (sin cambio el 1 de noviembre). "
                         + "El 7 de noviembre de 2027 a la 01:00 la regla pasa a UTC−05:00. "
-                        + "Después de esa fecha no hay más cambios definidos.", 13f, Ui.MUTED, false);
-        rule.addView(ruleText);
+                        + "Después de esa fecha no hay más cambios definidos.", 13f, Ui.INK_SOFT, false);
+        ruleText.setBackground(Ui.rounded(this, Ui.CANVAS, 12f, null));
+        int boxPad = dp(12);
+        ruleText.setPadding(boxPad, dp(10), boxPad, dp(10));
+        rule.addView(ruleText, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         column.addView(rule);
 
         column.addView(Ui.spacer(this, 14f));
@@ -261,8 +284,22 @@ public class MainActivity extends Activity {
         TextView valueView = Ui.text(this, value, emphasize ? 15f : 13.5f,
                 emphasize ? Ui.INK : Ui.MUTED, emphasize);
         row.addView(Ui.pair(this, Ui.text(this, label, 13.5f, Ui.MUTED, false), valueView));
-        parent.addView(row);
+        parent.addView(row, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         return valueView;
+    }
+
+    /** Etiqueta y valor en líneas separadas: los valores largos no se aprietan. */
+    private TextView addBlock(LinearLayout parent, String label) {
+        LinearLayout block = new LinearLayout(this);
+        block.setOrientation(LinearLayout.VERTICAL);
+        block.setPadding(0, dp(6), 0, dp(6));
+        TextView value = Ui.text(this, "…", 15f, Ui.INK, true);
+        block.addView(Ui.text(this, label, 12f, Ui.MUTED, false));
+        block.addView(value);
+        parent.addView(block, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        return value;
     }
 
     // ------------------------------------------------------------------
@@ -284,6 +321,11 @@ public class MainActivity extends Activity {
         deviceTimeValue.setText(formatLocal(now, actual));
         cubaTimeValue.setText(formatLocal(now, required));
         autoValue.setText(auto ? "Activada" : "Desactivada");
+
+        rulePill.setText(CubaRules.labelForMinutes(required));
+        rulePill.setTextColor(matches ? Ui.MINT_DEEP : Ui.AMBER_DEEP);
+        rulePill.setBackground(Ui.rounded(this, matches ? Ui.MINT_PALE : Ui.AMBER_PALE,
+                999f, null));
 
         if (!known) {
             setStatus("Antes de la regla", Ui.BLUE_PALE, Ui.BLUE_DARK);

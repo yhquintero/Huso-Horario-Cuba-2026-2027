@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Cuba Hora 2027</string>
+    <string name="manual_title">Manual de aplicación</string>
     <string name="channel_changes_name">Cambios de hora de Cuba</string>
     <string name="channel_changes_desc">Avisos sobre las transiciones previstas en la regla horaria.</string>
     <string name="notification_channel_changes">Cambios de hora</string>

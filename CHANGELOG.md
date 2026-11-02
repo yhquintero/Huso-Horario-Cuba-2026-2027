@@ -2,6 +2,14 @@
 
 Los cambios de este proyecto se anotan aquí para facilitar la revisión de los perfiles y de la guía.
 
+## 2026-11-01 · Android 1.2.0: tarjeta de la regla y manual de aplicación
+
+- Se corrige el hueco de la tarjeta **REGLA DEL PROYECTO**: el separador se insertaba bajo el título y los valores largos se apretaban contra la etiqueta. Ahora el título lleva el tramo vigente a la derecha, cada valor usa su propia línea (`addBlock`) y el texto de la regla va en una caja.
+- Se añade `ManualActivity` con las tres vías para aplicar el cambio (Ajustes, comando ADB sin root y zona automática), verificación con `getprop` y reversión a `America/Havana`, con copia de comandos al portapapeles.
+- Se documenta que `adb shell cmd alarm set-timezone` funciona sin root porque `com.android.shell` declara `SET_TIME_ZONE`; verificado en el código de AOSP (`AlarmManagerService.ShellCmd` y el manifiesto del paquete Shell).
+- `tools/render_screens.py` genera las capturas de `docs/capturas/` con las medidas, colores y textos del código (perfil Galaxy S22).
+- `tools/verify_android.py` comprueba el componente nuevo y los pasos del manual; la versión sube a 1.2.0 (versionCode 3) y se publica con la misma firma.
+
 ## 2026-11-01 · Android 1.1.0: ajuste guiado y sin permisos de sistema
 
 - Se corrigió un supuesto falso de la versión 1.0.0: en AOSP, `AlarmManager.setTimeZone()` exige `SET_TIME_ZONE` (`signature|privileged|role`) y escribir `time_zone` en `Settings.Global` no aplica el cambio. Una app instalada por el usuario no puede cambiar la zona horaria.
