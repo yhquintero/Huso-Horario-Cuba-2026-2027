@@ -148,7 +148,9 @@ jobs:
               lines = log.read_text(encoding="utf-8", errors="replace").splitlines()
               hits = [line for line in lines
                       if ".java:" in line or "ERROR" in line or "error" in line
-                      or "FAIL" in line or "Traceback" in line]
+                      or "FAIL" in line or "Traceback" in line
+                      or "firma" in line or line.startswith("Signer")
+                      or "Verified using" in line]
               selected = hits[:30] if hits else lines[-30:]
               if selected:
                   print("::error::---- %s ----" % name)

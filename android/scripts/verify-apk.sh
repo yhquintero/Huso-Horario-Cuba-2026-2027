@@ -55,8 +55,9 @@ done
 
 echo "== firma =="
 "$apksigner" verify --print-certs "$apk" > /tmp/signature.txt
-expected="$(tr -d '[:space:]' < android/expected-signer.txt)"
-signer="$(grep -m1 "certificate SHA-256 digest" /tmp/signature.txt | awk -F': ' '{print $2}' | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')"
+expected="$(tr -d '[:space:]:' < android/expected-signer.txt | tr '[:lower:]' '[:upper:]')"
+signer="$(grep -m1 "certificate SHA-256 digest" /tmp/signature.txt | awk -F': ' '{print $2}' | tr -d '[:space:]:' | tr '[:lower:]' '[:upper:]')"
+grep -E "^Signer #1 certificate (DN|SHA-256)|^Verified using" /tmp/signature.txt | head -6 || true
 echo "firma del APK : $signer"
 echo "firma esperada: $expected"
 if [[ "$signer" != "$expected" ]]; then
