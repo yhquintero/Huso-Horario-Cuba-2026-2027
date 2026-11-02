@@ -14,9 +14,9 @@ Copia instalable de **Cuba Hora 2027** para Android, generada por
 
 | Archivo | Versión | Tamaño | SHA-256 |
 |---|---|---:|---|
-| `CubaHora2027-v1.3.0.apk` | 1.3.0 (versionCode 4) | 114,829 bytes | `E30197E65FF09191EBFD7F1519E2F192BE8A0D6A5ADA8D4B5D1E295EFF2A4E56` |
+| `CubaHora2027-v1.4.0.apk` | 1.4.0 (versionCode 5) | 119,215 bytes | `D3626D91C55F9710502C395690BADA8A5463FF250553D6B8902F54F3CABE3968` |
 
-- **Android mínimo:** 6.0 (API 23, el mínimo de Shizuku). Probado con el flujo
+- **Android mínimo:** 6.0 (API 23). Probado con el flujo
   de compilación para API 34; funciona en Samsung Galaxy S22 y en otros
   teléfonos con Android 6.0 o superior.
 - **Firma:** SHA-256 del certificado
@@ -25,16 +25,16 @@ Copia instalable de **Cuba Hora 2027** para Android, generada por
 - **Permisos:** ninguno de sistema ni peligroso. No pide INTERNET y no puede
   leer datos personales. Pide solo notificaciones locales y, opcionalmente,
   alarmas exactas para los recordatorios.
-- **Cambio automático:** la app no puede cambiar la zona por sí misma (Android
-  reserva `SET_TIME_ZONE` a las aplicaciones del sistema). Con **Shizuku**
-  instalado y autorizado una vez por el usuario, un solo botón activa el
-  cambio: el 7 de noviembre de 2027 a la 01:00 aplica UTC−05:00 y verifica el
-  resultado. Sin Shizuku, muestra el desfase correcto y los pasos para
-  ajustarlo en Ajustes.
+- **Perfil Cuba 2026-2027:** un botón lo instala (del 01/11/2026 al
+  07/11/2027). Cambia la zona sola el 7 de noviembre de 2027 a la 01:00 y
+  verifica el resultado. La app no puede cambiar la zona por sí misma (Android
+  reserva `SET_TIME_ZONE` a las aplicaciones del sistema): usa **Shizuku** (sin
+  root) o **root** si están disponibles. Sin canal, copia los comandos para
+  ADB o guía el ajuste en Ajustes.
 
 ## Instalación
 
-1. Descarga `CubaHora2027-v1.3.0.apk` en el teléfono.
+1. Descarga `CubaHora2027-v1.4.0.apk` en el teléfono.
 2. Abre el archivo; si Android lo bloquea, permite «Instalar aplicaciones
    desconocidas» para la app con la que lo abriste (Archivos o Chrome).
 3. Acepta el aviso de Play Protect y termina la instalación.
@@ -46,5 +46,5 @@ este mismo `SHA256SUMS`.
 
 ```bash
 sha256sum -c SHA256SUMS
-apksigner verify --print-certs CubaHora2027-v1.3.0.apk
+apksigner verify --print-certs CubaHora2027-v1.4.0.apk
 ```
