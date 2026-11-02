@@ -266,10 +266,8 @@ def header(screen: Screen) -> None:
 
 
 def main_screen() -> Screen:
-    """Pantalla principal de 1.4.0: estado, perfil Cuba 2026-2027 y opciones."""
-    # La app hace scroll; la captura se recorta al contenido, así que se dibuja
-    # en un lienzo más alto para no cortar el último botón.
-    s = Screen(height_dp=980)
+    """Pantalla principal de 1.5.0: estado, perfil Cuba 2026-2027, opciones y diagnóstico."""
+    s = Screen(height_dp=1090)
     s.status_bar()
     header(s)
 
@@ -306,6 +304,14 @@ def main_screen() -> Screen:
     s.button("Instalar el perfil y activarlo")
     s.button("Probar ahora sin esperar a 2027", primary=False, y=s.cursor + dp(10))
     s.card_end()
+
+    s.card_start(top_margin=14)
+    s.draw_text(s.inner_x0, s.cursor, "MÁS OPCIONES PARA ACTIVARLO", 11.5, MUTED, bold=True)
+    s.cursor += dp(24)
+    s.body("Si el cambio no se aplica, pulsa «Diagnosticar»: genera un informe con el estado del teléfono, los canales y la prueba real.", gap=0)
+    s.cursor += dp(12)
+    s.button("Diagnosticar por qué no cambia", primary=False, y=s.cursor)
+    s.card_end()
     return s
 
 
@@ -326,7 +332,8 @@ def options_screen() -> Screen:
     for index, label in enumerate(("Activar con Shizuku (sin root)",
                                    "Activar con root (su)",
                                    "Copiar comandos para ADB",
-                                   "Ajustar a mano en Ajustes")):
+                                   "Ajustar a mano en Ajustes",
+                                   "Diagnosticar por qué no cambia")):
         s.button(label, primary=False, y=s.cursor)
         s.cursor += dp(10)
     s.card_end()

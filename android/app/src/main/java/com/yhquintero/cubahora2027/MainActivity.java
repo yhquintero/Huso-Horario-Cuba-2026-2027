@@ -308,6 +308,16 @@ public class MainActivity extends Activity {
             }
         });
         actions.addView(guide, fullWidth());
+
+        actions.addView(Ui.spacer(this, 10f));
+        Button diagnostics = Ui.button(this, "Diagnosticar por qué no cambia", false);
+        diagnostics.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                runDiagnostics();
+            }
+        });
+        actions.addView(diagnostics, fullWidth());
         column.addView(actions);
 
         column.addView(Ui.spacer(this, 14f));
@@ -816,12 +826,12 @@ public class MainActivity extends Activity {
         Thread worker = new Thread(new Runnable() {
             @Override
             public void run() {
-                final AutoSwitch.Result result = AutoSwitch.applyNow(
+                final AutoSwitch.Outcome outcome = AutoSwitch.applyNowDetailed(
                         getApplicationContext(), now);
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        showResultDialog(result, label, manualTest);
+                        showResultDialog(outcome, label, manualTest);
                         refresh();
                     }
                 });
@@ -831,50 +841,111 @@ public class MainActivity extends Activity {
         worker.start();
     }
 
-    private void showResultDialog(AutoSwitch.Result result, String label, boolean manualTest) {
+    private void showDiagnostics() {
+        final Diagnostics.Report[] holder = new Diagnostics.Report[1];
+        String title = "Informe del sistema";
+        String pending = "Recopilando estado del teléfono, canales y prueba de cambio…";
+        TextView message = Ui.text(this, pending, 13f, Ui.INK, false);
+        message.setPadding(dp(20), dp(10), dp(20), dp(10));
+        message.setTextIsSelectable(true);
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setView(message)
+                .setPositiveButton("Copiar informe", null)
+                .setNeutralButton("Cerrar", null)
+                .create();
+        dialog.show();
+        // Reemplazar el listener por defecto para no cerrar al copiar.
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Diagnostics.Report report = holder[0];
+                if (report != null) {
+                    copyToClipboard(report.text);
+                } else {
+                    toast("Aún sin informe: espera un instante.");
+                }
+            }
+        });
+
+        // Ejecutar el diagnóstico fuera del hilo principal.
+        Thread worker = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                final Diagnostics.Report report = Diagnostics.run(getApplicationContext());
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        holder[0] = report;
+                        message.setText(report.text);
+                        refresh();
+                    }
+                });
+            }
+        }, "cuba-diag");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    private void runDiagnostics() {
+        toast("Generando informe…");
+        showDiagnostics();
+    }
+
+    private void showResultDialog(AutoSwitch.Outcome outcome, String label, boolean manualTest) {
+        AutoSwitch.Result result = outcome.result;
         String title;
         String message;
         switch (result) {
             case APPLIED:
                 title = "Cambio aplicado";
-                message = "La zona del teléfono es ahora " + label + " y está verificada.\n\n"
-                        + "La transición del 7 de noviembre de 2027 se aplicará sola a la "
+                message = "La zona del teléfono es ahora " + label + " y está verificada"
+                        + (outcome.strategy.length() > 0 ? " con " + outcome.strategy : "")
+                        + ".\n\nLa transición del 7 de noviembre de 2027 se aplicará sola a la "
                         + "01:00, siempre que el canal siga activo (" + AutoSwitch.channelName()
                         + "). Si se detiene, recibirás un aviso para hacerlo en un toque.";
                 break;
             case UNVERIFIED:
                 title = "Cambio sin verificar";
-                message = "Se envió la orden, pero el sistema no confirma " + label + ".\n\n"
-                        + "Revisa el estado en esta pantalla. Si sigue igual, usa los pasos "
-                        + "manuales del manual.";
+                message = "Se envió la orden (" + outcome.strategy + "), pero el sistema no confirma "
+                        + label + " (leído: " + outcome.detail + ").\n\nDesactiva «Zona horaria "
+                        + "automática» en Ajustes y vuelve a intentarlo. Si sigue igual, pulsa "
+                        + "«Diagnosticar por qué no cambia» para ver el informe completo.";
                 break;
             case NO_CHANNEL:
                 title = "Falta el canal privilegiado";
                 message = "Android no permite a una app instalada cambiar la zona por sí "
-                        + "sola. Para el cambio automático hace falta Shizuku, root o los "
-                        + "comandos de ADB (" + AutoSwitch.channelStatus(this) + ").\n\n"
-                        + "Mientras tanto puedes aplicar " + label + " desde los ajustes.";
+                        + "sola (" + outcome.detail + ").\n\nEl perfil Cuba 2026-2027 existe dentro de la app, "
+                        + "no como nombre nuevo en la lista del sistema: Android guarda sus zonas en "
+                        + "la partición del sistema y solo una app de sistema puede añadir nombres. "
+                        + "Lo que hace esta app es poner la zona fija equivalente (" + label
+                        + ") y cambiarla sola cuando hay canal.\n\nPara activarlo elige Shizuku, "
+                        + "root o ADB. Mientras tanto puedes aplicar " + label + " desde Ajustes.";
                 break;
             default:
                 title = "No se pudo aplicar";
                 message = "El canal respondió con un error al ejecutar el cambio a " + label
-                        + ".\n\nPrueba de nuevo o usa los ajustes del sistema."
+                        + " (" + outcome.detail + ").\n\nPrueba de nuevo, revisa el permiso en el "
+                        + "gestor de root/Shizuku o pulsa «Diagnosticar por qué no cambia»."
                         + (manualTest ? "" : "");
                 break;
         }
-        new AlertDialog.Builder(this)
+        AlertDialog.Builder builder = new AlertDialog.Builder(this)
                 .setTitle(title)
                 .setMessage(message)
-                .setPositiveButton("Entendido", null)
-                .setNeutralButton(result == AutoSwitch.Result.APPLIED
-                        ? "Ver estado" : "Abrir ajustes", (dialog, which) -> {
-                    if (result == AutoSwitch.Result.APPLIED) {
-                        refresh();
-                    } else {
-                        ZoneController.openDateTimeSettings(MainActivity.this);
-                    }
-                })
-                .show();
+                .setPositiveButton("Entendido", null);
+        if (result == AutoSwitch.Result.APPLIED) {
+            builder.setNeutralButton("Ver estado", (dialog, which) -> refresh());
+        } else if (result == AutoSwitch.Result.NO_CHANNEL) {
+            builder.setNeutralButton("Elegir canal", (dialog, which) -> showChannelOptions());
+        } else {
+            builder.setNeutralButton("Diagnosticar", (dialog, which) -> showDiagnostics());
+        }
+        // Siempre ofrecer el diagnóstico como tercera opción.
+        if (result != AutoSwitch.Result.APPLIED) {
+            builder.setNegativeButton("Ver informe", (dialog, which) -> showDiagnostics());
+        }
+        builder.show();
     }
 
     /** Explica cómo instalar y arrancar Shizuku. */
