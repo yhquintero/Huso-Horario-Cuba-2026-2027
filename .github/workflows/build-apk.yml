@@ -141,6 +141,30 @@ jobs:
               text = line.replace("%", "%25").replace("\r", "%0D")
               print("::error::" + text[:900])
 
+          # El bloque «What went wrong» es donde Gradle explica la causa real.
+          for name in ("/tmp/build.log", "/tmp/verify.log"):
+              path = pathlib.Path(name)
+              if not path.is_file():
+                  continue
+              lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+              for index, line in enumerate(lines):
+                  if "What went wrong" in line:
+                      emit("--- %s: bloque de error ---" % path.name)
+                      for detail in lines[index:index + 18]:
+                          emit(detail)
+                      break
+          PY_ANNOTATE
+          echo "::group::dependencias resueltas"
+          find ~/.gradle/caches/modules-2/files-2.1 -maxdepth 2 -type d 2>/dev/null | grep -iE "shizuku|annotation" | head -10
+          for aar in $(find ~/.gradle/caches -name "*.aar" 2>/dev/null | head -5); do
+            echo "== $aar"
+            unzip -l "$aar" | head -15
+          done
+          df -h / | tail -2
+          echo "::endgroup::"
+          python3 - <<'PY_ANNOTATE2'
+          import pathlib
+
           for name in ("/tmp/verify.log", "/tmp/build.log"):
               log = pathlib.Path(name)
               if not log.is_file():
