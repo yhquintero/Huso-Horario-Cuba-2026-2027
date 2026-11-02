@@ -46,8 +46,9 @@ if grep -q 'usesCleartextTraffic.*true' /tmp/manifest-tree.txt; then
   exit 1
 fi
 for component in MainActivity GuideActivity BootReceiver TransitionReceiver; do
-  if ! grep -q "\".$component\"" /tmp/manifest-tree.txt; then
+  if ! grep -qE "\.(cubahora2027\.)?$component\"" /tmp/manifest-tree.txt; then
     echo "ERROR: el manifiesto no declara $component." >&2
+    grep -E "E: (activity|receiver)|android:name" /tmp/manifest-tree.txt | head -20 >&2 || true
     exit 1
   fi
 done
