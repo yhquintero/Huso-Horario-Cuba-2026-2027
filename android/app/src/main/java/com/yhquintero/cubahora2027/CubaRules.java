@@ -54,9 +54,13 @@ public final class CubaRules {
         return epochMillis < CHANGE_2027 ? OFFSET_SUMMER : OFFSET_STANDARD;
     }
 
-    /** Indica si el instante cae en el rango que la regla define explícitamente. */
+    /**
+     * Indica si el instante cae en el tramo que la regla define explícitamente
+     * (de 2026-01-01 a la transición de 2027). Después de esa fecha la regla
+     * mantiene UTC-05:00 sin más cambios declarados.
+     */
     public static boolean insideDefinedRange(long epochMillis) {
-        return epochMillis >= START_2026;
+        return epochMillis >= START_2026 && epochMillis < CHANGE_2027;
     }
 
     /**

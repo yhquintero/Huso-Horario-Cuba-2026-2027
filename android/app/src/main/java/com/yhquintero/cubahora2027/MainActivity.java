@@ -334,8 +334,13 @@ public class MainActivity extends Activity {
             nextValue.setText("Ninguna definida después de 2027");
         }
 
-        coverageValue.setText(CubaRules.insideDefinedRange(now)
-                ? "Dentro de 2026–2027" : "Fuera del rango 2026–2027");
+        if (now < CubaRules.START_2026) {
+            coverageValue.setText("Antes de 2026 (sin regla)");
+        } else if (CubaRules.insideDefinedRange(now)) {
+            coverageValue.setText("2026–2027, hasta el 7/11/2027");
+        } else {
+            coverageValue.setText("UTC−05:00 desde 7/11/2027 (sin más cambios)");
+        }
 
         bindingReminders = true;
         remindersBox.setChecked(ReminderScheduler.remindersEnabled(this));
