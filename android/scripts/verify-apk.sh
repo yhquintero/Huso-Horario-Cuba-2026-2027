@@ -21,6 +21,7 @@ version="$(sed -n 's/.*versionName "\(.*\)".*/\1/p' android/app/build.gradle | h
 [[ -n "$version" ]] || { echo "ERROR: no se pudo leer versionName" >&2; exit 1; }
 
 echo "== badging =="
+echo "aapt2: $aapt2"
 "$aapt2" dump badging "$apk" > /tmp/badging.txt
 grep -E "^(package|sdkVersion|targetSdkVersion|application-label)" /tmp/badging.txt || true
 if grep -q "uses-permission: name='android.permission.INTERNET'" /tmp/badging.txt; then
@@ -44,7 +45,7 @@ if grep -q 'usesCleartextTraffic.*true' /tmp/manifest-tree.txt; then
   exit 1
 fi
 for component in MainActivity GuideActivity BootReceiver TransitionReceiver; do
-  if ! grep -qi "\"$component\"" /tmp/manifest-tree.txt; then
+  if ! grep -q "\".$component\"" /tmp/manifest-tree.txt; then
     echo "ERROR: el manifiesto no declara $component." >&2
     exit 1
   fi

@@ -103,43 +103,16 @@ jobs:
           set -o pipefail
           bash android/scripts/build-apk.sh 2>&1 | tee /tmp/build.log
 
-      - name: Report build failure as annotations
-        if: failure()
-        run: |
-          python3 - <<'PY_ANNOTATE'
-          import pathlib
-          log = pathlib.Path("/tmp/build.log")
-          if not log.is_file():
-              raise SystemExit("sin /tmp/build.log")
-          lines = log.read_text(encoding="utf-8", errors="replace").splitlines()
-
-          def emit(line):
-              text = line.replace("%", "%25").replace("\r", "%0D")
-              print("::error::" + text[:900])
-
-          selected = [line for line in lines
-                      if ".java:" in line or "error:" in line or "symbol:" in line]
-          if not selected:
-              marker = 0
-              for index, line in enumerate(lines):
-                  if "What went wrong" in line:
-                      marker = index
-                      break
-              selected = lines[marker:marker + 25]
-          seen = set()
-          for line in selected[:45]:
-              if line.strip() and line not in seen:
-                  seen.add(line)
-                  emit(line)
-          PY_ANNOTATE
-
       - name: Verify APK and publish checksums in dist/
-        run: bash android/scripts/verify-apk.sh
+        run: |
+          set -o pipefail
+          bash android/scripts/verify-apk.sh 2>&1 | tee /tmp/verify.log
 
       - name: Show APK summary
         run: |
           ls -l dist/
           cat dist/SHA256SUMS
+          sed -n '1,12p' dist/README.md
 
       - name: Commit dist/ back to the branch
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')
@@ -154,8 +127,36 @@ jobs:
           path: |
             dist/*.apk
             dist/SHA256SUMS
+            dist/README.md
           if-no-files-found: error
           retention-days: 30
+
+      - name: Report failure details
+        if: failure()
+        run: |
+          python3 - <<'PY_ANNOTATE'
+          import pathlib
+
+          def emit(line):
+              text = line.replace("%", "%25").replace("\r", "%0D")
+              print("::error::" + text[:900])
+
+          for name in ("/tmp/verify.log", "/tmp/build.log"):
+              log = pathlib.Path(name)
+              if not log.is_file():
+                  continue
+              lines = log.read_text(encoding="utf-8", errors="replace").splitlines()
+              hits = [line for line in lines
+                      if ".java:" in line or "ERROR" in line or "error" in line
+                      or "FAIL" in line or "Traceback" in line]
+              selected = hits[:30] if hits else lines[-30:]
+              if selected:
+                  print("::error::---- %s ----" % name)
+              for line in selected:
+                  if line.strip():
+                      emit(line)
+              break
+          PY_ANNOTATE
 
   publish-release:
     name: Publish GitHub release
