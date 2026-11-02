@@ -55,12 +55,25 @@ done
 
 echo "== firma =="
 "$apksigner" verify --print-certs "$apk" > /tmp/signature.txt
+grep -E "SHA-256|Verified using" /tmp/signature.txt | head -8 || true
+
+# Extrae la huella SHA-256 del certificado sin depender del formato exacto
+# de apksigner (puede venir con o sin "Signer #1:", con o sin dos puntos).
+signer="$(python3 - <<'PY_HUELLA'
+import re
+
+text = open("/tmp/signature.txt", encoding="utf-8", errors="replace").read()
+for match in re.finditer(r"SHA-256 digest(?![a-z])([0-9A-Fa-f:\s]{64,})", text):
+    digits = re.sub(r"[^0-9A-Fa-f]", "", match.group(1))
+    if len(digits) >= 64:
+        print(digits[:64].upper())
+        break
+PY_HUELLA
+)"
 expected="$(tr -d '[:space:]:' < android/expected-signer.txt | tr '[:lower:]' '[:upper:]')"
-signer="$(grep -m1 "certificate SHA-256 digest" /tmp/signature.txt | awk -F': ' '{print $2}' | tr -d '[:space:]:' | tr '[:lower:]' '[:upper:]')"
-grep -E "^Signer #1 certificate (DN|SHA-256)|^Verified using" /tmp/signature.txt | head -6 || true
 echo "firma del APK : $signer"
 echo "firma esperada: $expected"
-if [[ "$signer" != "$expected" ]]; then
+if [[ -z "$signer" || "$signer" != "$expected" ]]; then
   echo "ERROR: la firma del APK no coincide con android/expected-signer.txt" >&2
   exit 1
 fi
