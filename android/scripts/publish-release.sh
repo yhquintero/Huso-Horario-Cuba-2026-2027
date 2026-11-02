@@ -16,15 +16,24 @@ tag="v${version}"
 notes="android/RELEASE_NOTES.md"
 [[ -f "$notes" ]] || { echo "ERROR: falta $notes" >&2; exit 1; }
 
+# Notas finales = notas del proyecto + checksum real del APK publicado.
+final_notes="$(mktemp)"
+{
+  cat "$notes"
+  printf '\n## SHA-256 del APK\n\n```\n'
+  cat dist/SHA256SUMS
+  printf '```\n'
+} > "$final_notes"
+
 if gh release view "$tag" >/dev/null 2>&1; then
   echo "La release $tag ya existe: se actualizan los adjuntos."
   gh release upload "$tag" dist/CubaHora2027-"${tag}".apk dist/SHA256SUMS --clobber
-  gh release edit "$tag" --notes-file "$notes" --title "Cuba Hora 2027 ${tag}"
+  gh release edit "$tag" --notes-file "$final_notes" --title "Cuba Hora 2027 ${tag}"
 else
   echo "Creando la release $tag."
   gh release create "$tag" \
     --title "Cuba Hora 2027 ${tag}" \
-    --notes-file "$notes" \
+    --notes-file "$final_notes" \
     --target "$GITHUB_SHA" \
     dist/CubaHora2027-"${tag}".apk dist/SHA256SUMS
 fi
