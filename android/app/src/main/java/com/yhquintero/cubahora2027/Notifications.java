@@ -17,6 +17,7 @@ public final class Notifications {
     public static final String CHANNEL_ID = "cambios_hora";
     private static final String TAG = "CubaHora";
     private static final int ID_WEEK = 3;
+    private static final int ID_APPLIED = 4;
     private static final int ID_SOON = 1;
     private static final int ID_CHANGE = 2;
 
@@ -60,6 +61,54 @@ public final class Notifications {
         } catch (Throwable error) {
             return false;
         }
+    }
+
+    /** Avisa del resultado del cambio automático (aplicado o pendiente). */
+    public static void showApplied(Context context, boolean applied, String detail,
+                                   int notificationId) {
+        ensureChannel(context);
+        if (!canPost(context)) {
+            return;
+        }
+        try {
+            Intent openIntent = new Intent(context, MainActivity.class);
+            openIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+            if (Build.VERSION.SDK_INT >= 23) {
+                flags |= PendingIntent.FLAG_IMMUTABLE;
+            }
+            PendingIntent contentIntent = PendingIntent.getActivity(context, 0, openIntent, flags);
+
+            String body = applied
+                    ? context.getString(R.string.notif_body_applied, detail)
+                    : context.getString(R.string.notif_body_failed, detail);
+
+            Notification.Builder builder;
+            if (Build.VERSION.SDK_INT >= 26) {
+                builder = new Notification.Builder(context, CHANNEL_ID);
+            } else {
+                builder = new Notification.Builder(context);
+            }
+            builder.setSmallIcon(R.drawable.ic_stat_time)
+                    .setContentTitle(context.getString(
+                            applied ? R.string.notif_title_applied : R.string.notif_title_failed))
+                    .setContentText(body)
+                    .setStyle(new Notification.BigTextStyle().bigText(body))
+                    .setContentIntent(contentIntent)
+                    .setAutoCancel(true);
+
+            NotificationManager manager =
+                    (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            if (manager != null) {
+                manager.notify(notificationId, builder.build());
+            }
+        } catch (Throwable error) {
+            Log.w(TAG, "No se pudo mostrar el resultado", error);
+        }
+    }
+
+    public static int appliedNotificationId() {
+        return ID_APPLIED;
     }
 
     public static void showChange(Context context, int daysBefore) {

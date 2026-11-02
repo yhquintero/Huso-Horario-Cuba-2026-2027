@@ -10,8 +10,11 @@
       AlarmManager.setTimeZone() exige SET_TIME_ZONE (nivel
       signature|privileged|role en AOSP) y escribir «time_zone» en
       Settings.Global no aplica el cambio: SettingsProvider no la observa.
-      Ninguna app instalada por el usuario puede cambiar la zona horaria, así
-      que la app solo lee el estado y guía a los ajustes del sistema.
+
+      Para el cambio automático la app usa Shizuku (proveedor declarado al
+      final del manifiesto), que presta el canal del shell tras una
+      autorización explícita del usuario. Sin Shizuku la app solo lee el estado,
+      avisa de las transiciones y guía a los ajustes del sistema.
     -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
@@ -68,6 +71,20 @@
             android:name=".TransitionReceiver"
             android:enabled="true"
             android:exported="false" />
+
+        <!--
+          Proveedor de Shizuku: recibe el binder del servicio privilegiado.
+          La app solo lo usa si el usuario instala Shizuku y autoriza el acceso;
+          el permiso declarado aquí restringe quién puede llamar al proveedor,
+          no es un permiso que la app solicite.
+        -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
     </application>
 
 </manifest>

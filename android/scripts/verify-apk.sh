@@ -35,8 +35,8 @@ if ! grep -q "package: name='com.yhquintero.cubahora2027' versionCode='$version_
   grep "^package:" /tmp/badging.txt >&2
   exit 1
 fi
-if ! grep -Eq "(min)?[Ss]dkVersion:'21'" /tmp/badging.txt; then
-  echo "ERROR: minSdk inesperado (se esperaba 21)." >&2
+if ! grep -Eq "(min)?[Ss]dkVersion:'23'" /tmp/badging.txt; then
+  echo "ERROR: minSdk inesperado (se esperaba 23)." >&2
   grep -i "sdkversion" /tmp/badging.txt >&2 || true
   exit 1
 fi
@@ -47,13 +47,19 @@ if grep -q 'usesCleartextTraffic.*true' /tmp/manifest-tree.txt; then
   echo "ERROR: el APK permite tráfico en claro." >&2
   exit 1
 fi
-for component in MainActivity GuideActivity BootReceiver TransitionReceiver; do
+for component in MainActivity ManualActivity GuideActivity BootReceiver TransitionReceiver; do
   if ! grep -qE "\.(cubahora2027\.)?$component\"" /tmp/manifest-tree.txt; then
     echo "ERROR: el manifiesto no declara $component." >&2
     grep -E "E: (activity|receiver)|android:name" /tmp/manifest-tree.txt | head -20 >&2 || true
     exit 1
   fi
 done
+
+echo "== proveedor de Shizuku =="
+if ! grep -q "rikka.shizuku.ShizukuProvider" /tmp/manifest-tree.txt; then
+  echo "ERROR: el APK no declara el proveedor de Shizuku." >&2
+  exit 1
+fi
 
 echo "== firma =="
 "$apksigner" verify --print-certs "$apk" > /tmp/signature.txt
