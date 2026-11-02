@@ -397,6 +397,30 @@ def check_cuba_rules() -> None:
     require("readSystemZone" in auto_switch,
             "AutoSwitch.java: debe verificar la zona aplicada leyendo el sistema")
 
+    # Canal alternativo por root: mismos comandos, otro privilegio.
+    root_raw = re.sub(r"/\*.*?\*/", "", read(JAVA_DIR / "RootChannel.java"), flags=re.DOTALL)
+    root = strip_java_comments(root_raw)
+    # Los literales de los comandos solo existen en el fuente con cadenas.
+    for token in ('"su"', '"-c"', "uid=0"):
+        require(token in root_raw,
+                "RootChannel.java: falta el canal de root (%s)" % token)
+    require("Runtime.getRuntime().exec" in root,
+            "RootChannel.java: debe ejecutar su con Runtime.exec")
+    require("RootChannel.available" in auto_switch and "RootChannel.exec" in auto_switch,
+            "AutoSwitch.java: debe poder aplicar con root cuando no hay Shizuku")
+    require("ShizukuChannel.exec" in auto_switch,
+            "AutoSwitch.java: debe seguir usando Shizuku como primer canal")
+
+    # Perfil Cuba 2026-2027: nombre y tramo en un solo sitio.
+    rules_raw = read(JAVA_DIR / "CubaRules.java")
+    for token in ('PROFILE_NAME = "Cuba 2026-2027"',
+                  'utc(2026, 11, 1, 4, 0)',
+                  '"del 01/11/2026 al 07/11/2027"'):
+        require(token in rules_raw,
+                "CubaRules.java: falta el perfil Cuba 2026-2027 (%s)" % token)
+    require("CubaRules.PROFILE_NAME" in read(MAIN_ACTIVITY),
+            "MainActivity.java: la tarjeta debe titularse con el perfil")
+
     receiver = strip_java_comments(read(JAVA_DIR / "TransitionReceiver.java"))
     require("AutoSwitch.applyNow" in receiver,
             "TransitionReceiver.java: la transición debe aplicar el cambio automático")
@@ -411,8 +435,10 @@ def check_cuba_rules() -> None:
             "MainActivity.java: debe mostrar la guía de ajuste manual")
     require("ManualActivity" in main_source,
             "MainActivity.java: falta el acceso al manual de aplicación")
-    for token in ("onPrimaryAction", "Activar el cambio automático",
-                  "OnRequestPermissionResultListener", "runAutomation"):
+    for token in ("onPrimaryAction", "Instalar el perfil y activarlo",
+                  "OnRequestPermissionResultListener", "runAutomation",
+                  "showChannelOptions", "activateWithRoot", "copyAdbCommands",
+                  "probeRootInBackground"):
         require(token in read(MAIN_ACTIVITY),
                 "MainActivity.java: falta el flujo de un solo botón (%s)" % token)
 

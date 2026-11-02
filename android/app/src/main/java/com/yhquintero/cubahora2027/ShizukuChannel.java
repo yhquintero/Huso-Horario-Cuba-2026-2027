@@ -39,30 +39,6 @@ public final class ShizukuChannel {
     private ShizukuChannel() {
     }
 
-    /** Resultado de un comando ejecutado con privilegios de shell. */
-    public static final class Output {
-        public final int code;
-        public final String out;
-        public final String error;
-
-        Output(int code, String out, String error) {
-            this.code = code;
-            this.out = out;
-            this.error = error;
-        }
-
-        public boolean ok() {
-            return code == 0;
-        }
-
-        public String describe() {
-            if (out.length() > 0) {
-                return out;
-            }
-            return error;
-        }
-    }
-
     /** Indica si la aplicación Shizuku está instalada. */
     public static boolean installed(Context context) {
         try {
@@ -104,7 +80,7 @@ public final class ShizukuChannel {
      * Ejecuta un comando con el UID del shell.
      * Devuelve {@code null} si Shizuku no está disponible o falla la llamada.
      */
-    public static Output exec(String... command) {
+    public static ChannelOutput exec(String... command) {
         if (command == null || command.length == 0) {
             return null;
         }
@@ -132,7 +108,8 @@ public final class ShizukuChannel {
             } catch (InterruptedException ignored) {
                 Thread.currentThread().interrupt();
             }
-            return new Output(code, out.toString().trim(), err.toString().trim());
+            return new ChannelOutput(code, out.toString().trim(),
+                    err.toString().trim());
         } catch (Throwable error) {
             Log.w(TAG, "Shizuku no pudo ejecutar el comando", error);
             return null;
@@ -145,16 +122,6 @@ public final class ShizukuChannel {
                 }
             }
         }
-    }
-
-    /** Zona activa según el propio sistema (fuente de verdad para verificar). */
-    public static String readSystemZone() {
-        Output output = exec("getprop", "persist.sys.timezone");
-        if (output == null || !output.ok()) {
-            return null;
-        }
-        String value = output.out.trim();
-        return value.length() == 0 ? null : value;
     }
 
     private static void drain(InputStream stream, StringBuilder target) {

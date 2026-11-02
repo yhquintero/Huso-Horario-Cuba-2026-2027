@@ -2,6 +2,16 @@
 
 Los cambios de este proyecto se anotan aquí para facilitar la revisión de los perfiles y de la guía.
 
+## 2026-11-01 · Android 1.4.0: perfil Cuba 2026-2027 y más canales
+
+- La tarjeta de estado deja de partir el texto del cambio automático: el valor corto va en su propia línea y el detalle del canal debajo.
+- Nueva tarjeta **Perfil Cuba 2026-2027** (del 01/11/2026 al 07/11/2027), con el tramo explícito y el botón «Instalar el perfil y activarlo».
+- Canal nuevo por **root** (`su`): `RootChannel` comprueba root al abrir la app y ejecuta los mismos comandos que Shizuku. `AutoSwitch` elige el primer canal disponible (Shizuku → root) y verifica siempre con `getprop persist.sys.timezone`.
+- Tarjeta **Más opciones para activarlo** con Shizuku, root, comandos para ADB (copiados al portapapeles) y ajuste manual en Ajustes; el botón principal abre un selector de canales cuando no hay ninguno disponible.
+- `ChannelOutput` unifica la salida de los dos canales; `ShizukuChannel` ya no guarda la verificación, que vive en `AutoSwitch`.
+- `CubaRules` centraliza el nombre y el tramo del perfil (`PROFILE_NAME`, `PROFILE_START`, `profileRangeLabel`).
+- Capturas nuevas de inicio, manual y más opciones; `verify_android.py` valida el canal de root y el perfil.
+
 ## 2026-11-01 · Android 1.3.0: cambio automático en la transición
 
 - Se añade el cambio automático del huso horario: el 7 de noviembre de 2027 a la 01:00 la app aplica UTC−05:00 sin intervención y verifica el resultado con `getprop persist.sys.timezone`.

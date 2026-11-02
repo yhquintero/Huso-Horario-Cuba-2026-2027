@@ -104,7 +104,7 @@ Copia instalable de **Cuba Hora 2027** para Android, generada por
 |---|---|---:|---|
 | `{name}` | {version_name} (versionCode {version_code}) | {size:,} bytes | `{digest.upper()}` |
 
-- **Android mínimo:** 6.0 (API 23, el mínimo de Shizuku). Probado con el flujo
+- **Android mínimo:** 6.0 (API 23). Probado con el flujo
   de compilación para API 34; funciona en Samsung Galaxy S22 y en otros
   teléfonos con Android 6.0 o superior.
 - **Firma:** SHA-256 del certificado
@@ -113,12 +113,12 @@ Copia instalable de **Cuba Hora 2027** para Android, generada por
 - **Permisos:** ninguno de sistema ni peligroso. No pide INTERNET y no puede
   leer datos personales. Pide solo notificaciones locales y, opcionalmente,
   alarmas exactas para los recordatorios.
-- **Cambio automático:** la app no puede cambiar la zona por sí misma (Android
-  reserva `SET_TIME_ZONE` a las aplicaciones del sistema). Con **Shizuku**
-  instalado y autorizado una vez por el usuario, un solo botón activa el
-  cambio: el 7 de noviembre de 2027 a la 01:00 aplica UTC−05:00 y verifica el
-  resultado. Sin Shizuku, muestra el desfase correcto y los pasos para
-  ajustarlo en Ajustes.
+- **Perfil Cuba 2026-2027:** un botón lo instala (del 01/11/2026 al
+  07/11/2027). Cambia la zona sola el 7 de noviembre de 2027 a la 01:00 y
+  verifica el resultado. La app no puede cambiar la zona por sí misma (Android
+  reserva `SET_TIME_ZONE` a las aplicaciones del sistema): usa **Shizuku** (sin
+  root) o **root** si están disponibles. Sin canal, copia los comandos para
+  ADB o guía el ajuste en Ajustes.
 
 ## Instalación
 

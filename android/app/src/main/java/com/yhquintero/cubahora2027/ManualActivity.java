@@ -92,15 +92,17 @@ public class ManualActivity extends Activity {
     private LinearLayout automaticCard() {
         LinearLayout card = Ui.card(this);
         boolean ready = AutoSwitch.canApplyNow(this);
-        card.addView(Ui.pill(this, ready ? "AUTOMÁTICO · LISTO" : "AUTOMÁTICO · REQUIERE SHIZUKU",
+        card.addView(Ui.pill(this, ready ? "AUTOMÁTICO · LISTO" : "AUTOMÁTICO · REQUIERE CANAL",
                 ready ? Ui.MINT_PALE : Ui.BLUE_PALE,
                 ready ? Ui.MINT_DEEP : Ui.BLUE_DARK));
         card.addView(Ui.spacer(this, 10f));
         card.addView(Ui.text(this, "Cambio sin tocar el teléfono", 18f, Ui.INK, true));
         card.addView(Ui.spacer(this, 6f));
-        card.addView(body("Con Shizuku, la app ejecuta la transición el 7 de noviembre de "
-                + "2027 a la 01:00 y verifica el resultado. Shizuku es un servicio gratuito "
-                + "y de código abierto que presta el permiso del shell; no requiere root."));
+        card.addView(body("El perfil " + CubaRules.PROFILE_NAME + " cubre "
+                + CubaRules.profileRangeLabel() + ": UTC−04:00 y, desde el 07/11/2027 a la "
+                + "01:00, UTC−05:00. Al instalarlo, la app cambia la zona sola y verifica "
+                + "el resultado con el sistema. Android reserva ese cambio a las apps del "
+                + "sistema, así que hace falta un canal: Shizuku, root o ADB."));
 
         card.addView(Ui.spacer(this, 12f));
         card.addView(step("1", "Instala Shizuku desde Play Store o su repositorio de GitHub."));
@@ -108,8 +110,13 @@ public class ManualActivity extends Activity {
         card.addView(step("3", "En Shizuku, elige «Emparejar» con depuración inalámbrica y "
                 + "pulsa «Iniciar». Si quieres que siga activo tras reiniciar, activa "
                 + "«Iniciar al arrancar» dentro de Shizuku."));
-        card.addView(step("4", "Vuelve a Cuba Hora 2027 y pulsa «Activar el cambio "
-                + "automático»: la app pide la autorización y prueba el cambio al momento."));
+        card.addView(step("4", "Vuelve a Cuba Hora 2027 y pulsa «Instalar el perfil y "
+                + "activarlo»: la app pide la autorización y prueba el cambio al momento."));
+
+        card.addView(Ui.spacer(this, 8f));
+        card.addView(body("¿Tienes root? Pulsa «Activar con root (su)» en la pantalla "
+                + "principal: la app pide permiso al gestor de root y ejecuta los mismos "
+                + "comandos, sin instalar nada más."));
 
         card.addView(Ui.spacer(this, 10f));
         card.addView(command("adb shell cmd alarm set-timezone " + OffsetGuide.zoneIdFor(
