@@ -54,6 +54,12 @@ ALLOWED_DEPENDENCIES = {
     "dev.rikka.shizuku:provider:12.1.0",
 }
 SHIZUKU_PROVIDER = "rikka.shizuku.ShizukuProvider"
+
+# Permiso que la biblioteca de Shizuku fusiona en el manifiesto del APK para
+# poder hablar con la app Shizuku. No lo concede el sistema ni da acceso a nada
+# por sí solo: la autorización real la da el usuario dentro de Shizuku. Se
+# comprueba sobre el APK compilado en android/scripts/verify-apk.sh.
+SHIZUKU_CALLER_PERMISSION = "moe.shizuku.manager.permission.API_V23"
 MIN_SDK = 23
 TARGET_SDK = 34
 COMPILE_SDK = 34

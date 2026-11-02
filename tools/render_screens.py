@@ -121,16 +121,19 @@ class Screen:
         width = int(self.text_width(text, size, True)) + pad_x * 2
         height = round(size * DENSITY * 1.2) + pad_y * 2
         self.rounded((x, y, x + width, y + height), 999, fill=background)
-        self._op(lambda: self.draw.text((x + pad_x, y + pad_y - dp(1)), text,
-                                        font=font(size, True), fill=color))
+        self._op(lambda: self.draw.text((x + pad_x, y + height / 2), text,
+                                        font=font(size, True), fill=color, anchor="lm"))
         return width, height
 
     def button(self, text: str, primary: bool = True, y: int | None = None,
                height_dp: float = 50, size: float = 15) -> int:
-        margin = dp(20)
+        # Dentro de una tarjeta el botón respeta su relleno interno; suelto, el margen
+        # de pantalla. En la app va siempre dentro del LinearLayout con padding 18dp.
+        x0, x1 = ((self.inner_x0, self.inner_x1) if self.record is not None
+                  else (dp(20), dp(WIDTH_DP) - dp(20)))
         top = self.cursor if y is None and self.record is not None else (
             self.y if y is None else y)
-        self.rounded((margin, top, dp(WIDTH_DP) - margin, top + dp(height_dp)), 14,
+        self.rounded((x0, top, x1, top + dp(height_dp)), 14,
                      fill=BLUE if primary else WHITE, outline=None if primary else LINE)
         width = self.text_width(text, size)
         self._op(lambda: self.draw.text(((dp(WIDTH_DP) - width) / 2, top + dp(15)), text,
@@ -263,35 +266,31 @@ def header(screen: Screen) -> None:
 
 
 def main_screen() -> Screen:
+    """Pantalla principal de 1.3.0: estado + un solo botón de cambio automático."""
     s = Screen()
     s.status_bar()
     header(s)
 
     # Tarjeta de estado
     s.card_start(top_margin=18)
-    header_row(s, "ESTADO DEL TELÉFONO", "Ajuste pendiente", AMBER_PALE, AMBER_DEEP)
-    s.cursor += dp(24)
+    header_row(s, "ESTADO DEL TELÉFONO", "Coincide con la regla", MINT_PALE, MINT_DEEP)
     s.row("Zona horaria", "America/Havana")
     s.row("Desfase del teléfono", "UTC-04:00")
     s.row("Desfase que exige la regla", "UTC-04:00")
-    s.block("Hora del teléfono", "09:41:07 · 01/11/2026", gap=10)
-    s.block("Hora de Cuba según la regla", "09:41:07 · 01/11/2026")
-    s.block("Zona horaria automática", "Activada")
-    s.body("Zona automática activada (America/Havana). Mientras esté activa, la red "
-           "puede devolver la zona de Cuba y deshacer el ajuste manual.", gap=10)
+    s.row("Cambio automático", "Listo")
+    s.body("Shizuku autorizado: el 07/11/2027 a la 01:00 la app aplica UTC-05:00 y "
+           "verifica el resultado.", gap=10)
     s.card_end()
 
     # Acciones
     s.card_start(top_margin=14)
     s.draw_text(s.inner_x0, s.cursor, "CÓMO AJUSTARLO", 11.5, MUTED, bold=True)
     s.cursor += dp(24)
-    s.body("Android solo deja cambiar la zona horaria a aplicaciones del sistema: una app "
-           "instalada como esta no puede hacerlo. La app compara tu teléfono con la regla y "
-           "te indica la zona exacta que debes elegir en los ajustes.", gap=0)
+    s.body("Android solo deja cambiar la zona a aplicaciones del sistema. La app usa "
+           "Shizuku, autorizado una vez, para ejecutar el cambio y comprobarlo.", gap=0)
     s.cursor += dp(12)
-    s.button("Abrir ajustes · elegir UTC-04:00")
-    s.button("Ver los pasos y la zona a elegir", primary=False, y=s.cursor + dp(10))
-    s.button("Manual completo: opciones y comandos", primary=False, y=s.cursor + dp(10))
+    s.button("Activar el cambio automático")
+    s.button("Probar ahora sin esperar a 2027", primary=False, y=s.cursor + dp(10))
     s.card_end()
     return s
 
@@ -316,28 +315,37 @@ def rule_screen() -> Screen:
 
 
 def manual_screen() -> Screen:
+    """Primera tarjeta del manual de 1.3.0: vía automática con Shizuku."""
     s = Screen()
     s.status_bar()
     s.draw_text(dp(20), dp(38), "Manual de aplicación", 22, INK, bold=True)
     s.draw_text(dp(20), dp(38) + dp(34),
-                "Dos formas de dejar el teléfono en el desfase que pide la regla.", 13,
+                "Cuatro formas de dejar el teléfono en el desfase que pide la regla.", 13,
                 MUTED, max_width=dp(WIDTH_DP) - dp(40))
 
     s.y = dp(96)
     s.card_start(top_margin=10)
-    s.pill(s.inner_x0, s.cursor, "OPCIÓN 2 · CON PC", 11, BLUE_PALE, BLUE_DARK)
+    s.pill(s.inner_x0, s.cursor, "AUTOMÁTICO · LISTO", 11, MINT_PALE, MINT_DEEP)
     s.cursor += dp(28)
-    s.cursor = s.draw_text(s.inner_x0, s.cursor, "Un comando por ADB, sin root", 18, INK,
+    s.cursor = s.draw_text(s.inner_x0, s.cursor, "Cambio sin tocar el teléfono", 18, INK,
                            bold=True, max_width=s.inner_x1 - s.inner_x0)
-    s.body("El usuario «shell» de ADB tiene permiso de zona horaria en Android, así que "
-           "este comando cambia la zona de verdad. Necesitas un PC, el cable y la "
-           "depuración USB activada. No hace falta root.")
+    s.body("Con Shizuku, la app ejecuta la transición el 7 de noviembre de 2027 a la "
+           "01:00 y verifica el resultado. Shizuku es un servicio gratuito y de código "
+           "abierto que presta el permiso del shell; no requiere root.")
+    s.cursor += dp(12)
+    for number, text in (
+            ("1", "Instala Shizuku desde Play Store o su repositorio de GitHub."),
+            ("2", "Activa Opciones de desarrollador y «Depuración inalámbrica»."),
+            ("3", "En Shizuku, elige «Emparejar» y pulsa «Iniciar»; para que siga "
+                  "activo tras reiniciar, activa «Iniciar al arrancar»."),
+            ("4", "Vuelve a la app y pulsa «Activar el cambio automático».")):
+        s.draw_text(s.inner_x0, s.cursor, number, 12, BLUE_DARK, bold=True)
+        s.cursor = s.draw_text(s.inner_x0 + dp(20), s.cursor, text, 13.5, INK,
+                               max_width=s.inner_x1 - s.inner_x0 - dp(20))
+        s.cursor += dp(8)
     s.box([("adb shell cmd alarm set-timezone America/Santo_Domingo", 12.5, INK, False),
-           ("Fija UTC-04:00 ahora mismo.", 12, MUTED, False)], gap=10)
-    s.box([("adb shell settings put global auto_time_zone 0", 12.5, INK, False),
-           ("Desactiva la zona automática para que no se deshaga el cambio.", 12, MUTED, False)])
-    s.cursor += dp(10)
-    s.button("Copiar comando", primary=False, y=s.cursor + dp(10), height_dp=40, size=13)
+           ("Equivalente manual: lo que la app ejecuta con Shizuku.", 12, MUTED, False)],
+          gap=4)
     s.card_end()
     return s
 
@@ -347,7 +355,7 @@ def build() -> dict[Path, Image.Image]:
     return {
         OUT_DIR / "01-inicio.png": main_screen().image,
         OUT_DIR / "02-regla-del-proyecto.png": rule_screen().crop(),
-        OUT_DIR / "03-manual.png": manual_screen().image,
+        OUT_DIR / "03-manual.png": manual_screen().crop(),
     }
 
 

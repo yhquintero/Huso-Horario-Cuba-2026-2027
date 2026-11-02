@@ -54,8 +54,9 @@ public class ManualActivity extends Activity {
         column.addView(Ui.text(this, "Manual de aplicación", 22f, Ui.INK, true));
         column.addView(Ui.spacer(this, 4f));
         column.addView(Ui.text(this,
-                "Dos formas de dejar el teléfono en el desfase que pide la regla. "
-                        + "Elige una; la app no puede cambiarlo sola porque Android reserva "
+                "Cuatro formas de dejar el teléfono en el desfase que pide la regla. "
+                        + "Elige una. La primera es automática; las demás, manuales. La app no "
+                        + "puede cambiarlo sola sin un canal autorizado porque Android reserva "
                         + "ese ajuste al sistema.", 13.5f, Ui.MUTED, false));
 
         column.addView(Ui.spacer(this, 16f));

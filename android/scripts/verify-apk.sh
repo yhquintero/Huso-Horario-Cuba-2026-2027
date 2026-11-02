@@ -55,7 +55,15 @@ for component in MainActivity ManualActivity GuideActivity BootReceiver Transiti
   fi
 done
 
-echo "== proveedor de Shizuku =="
+echo "== Shizuku =="
+if ! grep -q "moe.shizuku.manager.permission.API_V23" /tmp/manifest-tree.txt; then
+  echo "ERROR: falta el permiso de cliente de Shizuku en el APK." >&2
+  exit 1
+fi
+if grep -q "uses-permission.*SET_TIME_ZONE\|uses-permission.*WRITE_SECURE_SETTINGS" /tmp/manifest-tree.txt; then
+  echo "ERROR: el APK pide permisos de sistema que no puede usar." >&2
+  exit 1
+fi
 if ! grep -q "rikka.shizuku.ShizukuProvider" /tmp/manifest-tree.txt; then
   echo "ERROR: el APK no declara el proveedor de Shizuku." >&2
   exit 1
