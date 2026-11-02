@@ -36,17 +36,17 @@ title="Cuba Hora 2027 ${tag}"
 
 if gh release view "$tag" >/dev/null 2>&1; then
   echo "La release $tag ya existe: se actualizan los adjuntos."
-  gh release upload "$tag" "$apk" dist/SHA256SUMS dist/README.md --clobber
+  gh release upload "$tag" "$apk" dist/SHA256SUMS --clobber
   gh release edit "$tag" --notes-file "$final_notes" --title "$title"
 else
   echo "Creando la release $tag."
   if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
     gh release create "$tag" --title "$title" --notes-file "$final_notes" \
-      "$apk" dist/SHA256SUMS dist/README.md
+      "$apk" dist/SHA256SUMS
   else
     gh release create "$tag" --title "$title" --notes-file "$final_notes" \
       --target "${GITHUB_SHA:?}" \
-      "$apk" dist/SHA256SUMS dist/README.md
+      "$apk" dist/SHA256SUMS
   fi
 fi
 
