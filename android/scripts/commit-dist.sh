@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # Devuelve a la rama el APK recién compilado y su ficha (dist/).
 # Solo se ejecuta en CI, con GH_TOKEN y permiso contents: write.
+#
+# Nota: el mensaje no incluye marcas de omisión de CI. Un commit de este tipo
+# puede ser el que quede etiquetado con un tag de release, y GitHub omite los
+# flujos también cuando el commit etiquetado contiene esas marcas. Como
+# "dist/**" no figura en los filtros de push del flujo de compilación, no hay
+# riesgo de bucle.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -18,6 +24,6 @@ if git diff --cached --quiet; then
 fi
 
 version="$(sed -n 's/.*versionName "\(.*\)".*/\1/p' android/app/build.gradle | head -1)"
-git commit -m "Publicar APK v${version} en dist/ [skip ci]"
+git commit -m "Publicar APK v${version} en dist/"
 git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
   "HEAD:${GITHUB_REF_NAME}"
