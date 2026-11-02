@@ -19,6 +19,8 @@ apksigner="${build_tools}apksigner"
 
 version="$(sed -n 's/.*versionName "\(.*\)".*/\1/p' android/app/build.gradle | head -1)"
 [[ -n "$version" ]] || { echo "ERROR: no se pudo leer versionName" >&2; exit 1; }
+version_code="$(sed -n 's/.*versionCode \([0-9][0-9]*\).*/\1/p' android/app/build.gradle | head -1)"
+[[ -n "$version_code" ]] || { echo "ERROR: no se pudo leer versionCode" >&2; exit 1; }
 
 echo "== badging =="
 echo "aapt2: $aapt2"
@@ -28,7 +30,7 @@ if grep -q "uses-permission: name='android.permission.INTERNET'" /tmp/badging.tx
   echo "ERROR: el APK pide INTERNET; la app debe funcionar sin red." >&2
   exit 1
 fi
-if ! grep -q "package: name='com.yhquintero.cubahora2027' versionCode='1' versionName='$version'" /tmp/badging.txt; then
+if ! grep -q "package: name='com.yhquintero.cubahora2027' versionCode='$version_code' versionName='$version'" /tmp/badging.txt; then
   echo "ERROR: applicationId o versión inesperados en el APK." >&2
   grep "^package:" /tmp/badging.txt >&2
   exit 1

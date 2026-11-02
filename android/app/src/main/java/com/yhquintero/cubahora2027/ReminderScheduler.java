@@ -10,8 +10,9 @@ import android.util.Log;
 /**
  * Programa los recordatorios de las transiciones previstas.
  *
- * <p>Las alarmas son meramente informativas: la aplicación nunca cambia la
- * zona horaria sin una acción explícita del usuario.</p>
+ * <p>Las alarmas son meramente informativas: recuerdan al usuario que debe
+ * revisar la zona horaria en los ajustes del sistema. La aplicación nunca
+ * cambia la zona por sí sola.</p>
  */
 public final class ReminderScheduler {
 
@@ -19,8 +20,9 @@ public final class ReminderScheduler {
     public static final String KEY_REMINDERS = "reminders_enabled";
 
     private static final String TAG = "CubaHora";
-    private static final int REQUEST_CHANGE = 4101;
+    private static final int REQUEST_WEEK = 4100;
     private static final int REQUEST_SOON = 4102;
+    private static final int REQUEST_CHANGE = 4101;
     private static final long DAY_MILLIS = 24L * 60L * 60L * 1000L;
 
     private ReminderScheduler() {
@@ -49,12 +51,16 @@ public final class ReminderScheduler {
         if (next <= 0) {
             return;
         }
+        long week = next - 7 * DAY_MILLIS;
         long soon = next - DAY_MILLIS;
+        if (week > now) {
+            schedule(context, week, REQUEST_WEEK, 7);
+        }
         if (soon > now) {
-            schedule(context, soon, REQUEST_SOON, true);
+            schedule(context, soon, REQUEST_SOON, 1);
         }
         if (next > now) {
-            schedule(context, next, REQUEST_CHANGE, false);
+            schedule(context, next, REQUEST_CHANGE, 0);
         }
     }
 
@@ -64,19 +70,20 @@ public final class ReminderScheduler {
             return;
         }
         try {
-            alarms.cancel(pending(context, REQUEST_SOON, true));
-            alarms.cancel(pending(context, REQUEST_CHANGE, false));
+            alarms.cancel(pending(context, REQUEST_WEEK, 7));
+            alarms.cancel(pending(context, REQUEST_SOON, 1));
+            alarms.cancel(pending(context, REQUEST_CHANGE, 0));
         } catch (Throwable error) {
             Log.w(TAG, "No se pudieron cancelar los recordatorios", error);
         }
     }
 
-    private static void schedule(Context context, long atMillis, int requestCode, boolean soon) {
+    private static void schedule(Context context, long atMillis, int requestCode, int daysBefore) {
         AlarmManager alarms = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarms == null) {
             return;
         }
-        PendingIntent operation = pending(context, requestCode, soon);
+        PendingIntent operation = pending(context, requestCode, daysBefore);
         try {
             if (Build.VERSION.SDK_INT >= 31) {
                 if (alarms.canScheduleExactAlarms()) {
@@ -101,10 +108,10 @@ public final class ReminderScheduler {
         }
     }
 
-    private static PendingIntent pending(Context context, int requestCode, boolean soon) {
+    private static PendingIntent pending(Context context, int requestCode, int daysBefore) {
         Intent intent = new Intent(context, TransitionReceiver.class);
         intent.setAction(TransitionReceiver.ACTION_TRANSITION);
-        intent.putExtra(TransitionReceiver.EXTRA_SOON, soon);
+        intent.putExtra(TransitionReceiver.EXTRA_DAYS, daysBefore);
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= 23) {
             flags |= PendingIntent.FLAG_IMMUTABLE;

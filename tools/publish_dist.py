@@ -110,9 +110,11 @@ Copia instalable de **Cuba Hora 2027** para Android, generada por
 - **Firma:** SHA-256 del certificado
   `{format_fingerprint(signer)}` (identidad pública del proyecto, ver
   `android/keystore/README.md`).
-- **Permisos peligrosos:** ninguno. No pide INTERNET y no puede leer datos
-  personales. El cambio automático de zona horaria requiere un permiso
-  opcional que solo se concede por ADB.
+- **Permisos:** ninguno de sistema ni peligroso. No pide INTERNET y no puede
+  leer datos personales. Pide solo notificaciones locales y, opcionalmente,
+  alarmas exactas para los recordatorios. La app **no** cambia la zona
+  horaria: Android reserva ese cambio a aplicaciones del sistema, así que
+  muestra el desfase correcto y los pasos para ajustarlo en Ajustes.
 
 ## Instalación
 

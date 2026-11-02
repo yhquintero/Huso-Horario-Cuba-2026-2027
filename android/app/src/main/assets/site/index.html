@@ -355,14 +355,15 @@
             <h2 id="android-title">El mismo criterio,<br /><em>también en el móvil.</em></h2>
             <p>
               <strong>Cuba Hora 2027</strong> es la versión Android de este proyecto. Compara la zona
-              del teléfono con la regla publicada aquí, muestra la hora de Cuba y, si se concede un
-              permiso opcional, aplica el cambio sin pasar por los ajustes.
+              del teléfono con la regla publicada aquí, muestra la hora de Cuba y te dice la zona
+              exacta que debes elegir en los ajustes del sistema. Android no permite que una app
+              instalada cambie la zona horaria: la app lo explica en vez de prometerlo.
             </p>
             <div class="install-callout">
               <span class="callout-shield" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none"><path d="M12 3 19 6v5.3c0 4.2-2.9 7.7-7 9.7-4.1-2-7-5.5-7-9.7V6l7-3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </span>
-              <span><strong>Un solo archivo</strong><small>APK firmado, sin INTERNET y sin permisos peligrosos. Android 5.0 o superior, compatible con Galaxy S22.</small></span>
+              <span><strong>Un solo archivo</strong><small>APK firmado, sin INTERNET, sin permisos de sistema y sin rastreadores. Android 5.0 o superior, compatible con Galaxy S22.</small></span>
             </div>
             <p class="android-download">
               <a class="button button-primary" href="https://github.com/yhquintero/Huso-Horario-Cuba-2026-2027/releases/latest">
@@ -388,15 +389,15 @@
             </li>
             <li class="install-step">
               <span class="step-number">03</span>
-              <div><h3>Ajusta la zona</h3><p>Sin permisos adicionales, la app abre los ajustes del sistema: en un Galaxy S22, <strong>Ajustes → Administración general → Fecha y hora</strong>. Desactiva la zona automática y elige la que corresponda.</p></div>
+              <div><h3>Ajusta la zona</h3><p>La app abre los ajustes del sistema: en un Galaxy S22, <strong>Ajustes → Administración general → Fecha y hora</strong>. Desactiva «Zona horaria automática» y elige una zona con desfase fijo: <strong>Santo Domingo</strong> para UTC−04:00 o <strong>Bogotá</strong> para UTC−05:00. La app indica también las alternativas y el valor GMT equivalente.</p></div>
             </li>
             <li class="install-step">
               <span class="step-number">04</span>
-              <div><h3>Permiso opcional por ADB</h3><p>Para aplicar el cambio con un toque, concede una sola vez <code>WRITE_SECURE_SETTINGS</code> desde un PC con depuración USB: <code>adb shell pm grant com.yhquintero.cubahora2027 android.permission.WRITE_SECURE_SETTINGS</code>. No requiere root y se revoca con <code>pm revoke</code>.</p></div>
+              <div><h3>Por qué no lo hace la app</h3><p>Cambiar la zona exige <code>SET_TIME_ZONE</code>, un permiso de nivel <code>signature|privileged|role</code> reservado a aplicaciones del sistema o del fabricante. Escribir <code>time_zone</code> en los ajustes globales no aplica el cambio. Ninguna app instalada por el usuario puede hacerlo sin root: por eso la app guía en lugar de prometer un cambio automático.</p></div>
             </li>
             <li class="install-step">
               <span class="step-number">05</span>
-              <div><h3>Recordatorios</h3><p>La app avisa 24 horas antes y en el momento de la transición. Solo envía notificaciones locales: no usa servidores ni conexión a Internet.</p></div>
+              <div><h3>Recordatorios</h3><p>La app avisa 7 días antes, 24 horas antes y en el momento de la transición, y se reprograma al reiniciar. Solo envía notificaciones locales: no usa servidores ni conexión a Internet.</p></div>
             </li>
             <li class="install-step">
               <span class="step-number">06</span>
