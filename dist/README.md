@@ -14,7 +14,7 @@ Copia instalable de **Cuba Hora 2027** para Android, generada por
 
 | Archivo | Versión | Tamaño | SHA-256 |
 |---|---|---:|---|
-| `CubaHora2027-v1.2.0.apk` | 1.2.0 (versionCode 3) | 84,968 bytes | `0894D9D7DB132ADD4B97AF0821891329DE4464B4E4FC567585F45786547785FE` |
+| `CubaHora2027-v1.3.0.apk` | 1.3.0 (versionCode 4) | 114,575 bytes | `CE82C1E3405D44D3E414E7D1ECDB71B15991C578EFF0632F01669711026D9D4F` |
 
 - **Android mínimo:** 5.0 (API 21). Probado con el flujo de compilación para
   API 34; funciona en Samsung Galaxy S22 y en otros teléfonos con Android 5.0
@@ -30,7 +30,7 @@ Copia instalable de **Cuba Hora 2027** para Android, generada por
 
 ## Instalación
 
-1. Descarga `CubaHora2027-v1.2.0.apk` en el teléfono.
+1. Descarga `CubaHora2027-v1.3.0.apk` en el teléfono.
 2. Abre el archivo; si Android lo bloquea, permite «Instalar aplicaciones
    desconocidas» para la app con la que lo abriste (Archivos o Chrome).
 3. Acepta el aviso de Play Protect y termina la instalación.
@@ -42,5 +42,5 @@ este mismo `SHA256SUMS`.
 
 ```bash
 sha256sum -c SHA256SUMS
-apksigner verify --print-certs CubaHora2027-v1.2.0.apk
+apksigner verify --print-certs CubaHora2027-v1.3.0.apk
 ```
