@@ -1,0 +1,84 @@
+plugins {
+    id "com.android.application"
+}
+
+// Firma: se toma de variables de entorno (CUBA_KEYSTORE_PATH, ...) o del
+// archivo android/keystore/keystore.properties del proyecto. Si no hay
+// ninguna de las dos, la compilación usa la firma de debug, que también
+// produce un APK instalable por sideload.
+def signingProperties = new Properties()
+def signingPropertiesFile = rootProject.file("keystore/keystore.properties")
+if (signingPropertiesFile.exists()) {
+    signingPropertiesFile.withInputStream { signingProperties.load(it) }
+}
+
+def envKeystore = System.getenv("CUBA_KEYSTORE_PATH")
+def keystorePathValue = (envKeystore != null && !envKeystore.trim().isEmpty())
+        ? envKeystore
+        : signingProperties.getProperty("storeFile")
+def keystorePassword = System.getenv("CUBA_KEYSTORE_PASSWORD") ?: signingProperties.getProperty("storePassword")
+def keyAliasValue = System.getenv("CUBA_KEY_ALIAS") ?: signingProperties.getProperty("keyAlias")
+def keyPasswordValue = System.getenv("CUBA_KEY_PASSWORD") ?: signingProperties.getProperty("keyPassword")
+def hasReleaseSigning = keystorePathValue != null && !keystorePathValue.trim().isEmpty()
+
+android {
+    namespace "com.yhquintero.cubahora2027"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.yhquintero.cubahora2027"
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    if (hasReleaseSigning) {
+        signingConfigs {
+            release {
+                storeFile rootProject.file(keystorePathValue)
+                storePassword keystorePassword
+                keyAlias keyAliasValue
+                keyPassword keyPasswordValue
+                enableV1Signing true
+                enableV2Signing true
+                enableV3Signing false
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+            signingConfig hasReleaseSigning ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+        warningsAsErrors false
+    }
+
+    // Fuera las firmas de dependencias (no aportan nada a un APK autocontenido).
+    dependenciesInfo {
+        includeInApk false
+        includeInBundle false
+    }
+}
+
+dependencies {
+    // Sin dependencias externas: solo API del framework de Android.
+}
+
+tasks.register("printVersion") {
+    doLast {
+        println "${android.defaultConfig.versionName} (${android.defaultConfig.versionCode})"
+    }
+}

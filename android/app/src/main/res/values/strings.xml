@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Cuba Hora 2027</string>
+    <string name="channel_changes_name">Cambios de hora de Cuba</string>
+    <string name="channel_changes_desc">Avisos sobre las transiciones previstas en la regla horaria.</string>
+    <string name="notification_channel_changes">Cambios de hora</string>
+    <string name="notif_title">Cambio previsto de hora</string>
+    <string name="notif_body_change">Desde ahora la regla del proyecto indica UTC-05:00. Abre Cuba Hora 2027 para revisar el ajuste del teléfono.</string>
+    <string name="notif_body_soon">En menos de 24 horas está previsto un cambio de hora según la regla del proyecto.</string>
+</resources>
