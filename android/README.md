@@ -56,6 +56,19 @@ En GitHub Actions (`.github/workflows/build-apk.yml`) el APK se genera en cada
 cambio y se adjunta como artefacto; al ejecutar el flujo a mano con
 `publish_release: true` se publica como release.
 
+Publicar una release:
+
+```bash
+# versionName de android/app/build.gradle y el tag deben coincidir
+git tag -a v1.0.0 -m "Cuba Hora 2027 v1.0.0"
+git push origin v1.0.0
+```
+
+El tag dispara `.github/workflows/release-apk.yml`, que verifica el APK
+versionado en `dist/`, comprueba que coincida con el `versionName` y publica la
+release con el APK, `SHA256SUMS` y la ficha. No recompila: publica exactamente
+el binario que ya validó CI.
+
 Localmente, con JDK 17 y Android SDK (compileSdk 34):
 
 ```bash

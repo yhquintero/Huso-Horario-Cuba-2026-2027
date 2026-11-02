@@ -26,13 +26,9 @@ on:
       - "tools/verify_release_hashes.py"
       - "dist/**"
       - ".github/workflows/build-apk.yml"
+  # La publicación de una release se hace con .github/workflows/release-apk.yml
+  # al empujar un tag vX.Y.Z.
   workflow_dispatch:
-    inputs:
-      publish_release:
-        description: "Publicar el APK como release de GitHub"
-        type: boolean
-        required: false
-        default: false
 
 permissions:
   contents: read
@@ -159,28 +155,3 @@ jobs:
                       emit(line)
               break
           PY_ANNOTATE
-
-  publish-release:
-    name: Publish GitHub release
-    needs: build-apk
-    if: github.event_name == 'workflow_dispatch' && inputs.publish_release
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-    steps:
-      - name: Check out source without persisting credentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: false
-
-      - name: Download APK artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.2.1
-        with:
-          name: cuba-hora-2027-apk
-          path: dist
-
-      - name: Create or update the release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: bash android/scripts/publish-release.sh
