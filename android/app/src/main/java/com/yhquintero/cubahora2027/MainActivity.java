@@ -1,6 +1,7 @@
 package com.yhquintero.cubahora2027;
 
 import android.Manifest;
+import android.app.Activity;
 import android.app.AlarmManager;
 import android.app.AlertDialog;
 import android.content.ClipData;
