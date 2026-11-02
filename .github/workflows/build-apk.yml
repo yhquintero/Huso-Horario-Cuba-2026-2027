@@ -146,12 +146,15 @@ jobs:
               if not log.is_file():
                   continue
               lines = log.read_text(encoding="utf-8", errors="replace").splitlines()
+              patterns = (".java:", "ERROR", "error", "FAIL", "Traceback",
+                          "Caused by", "What went wrong", "Execution failed",
+                          "> Task", "Could not", "Cannot", "firma", "Signer",
+                          "Verified using")
               hits = [line for line in lines
-                      if ".java:" in line or "ERROR" in line or "error" in line
-                      or "FAIL" in line or "Traceback" in line
-                      or "firma" in line or line.startswith("Signer")
-                      or "Verified using" in line]
-              selected = hits[:30] if hits else lines[-30:]
+                      if any(pattern in line for pattern in patterns)]
+              # La causa suele estar tras «What went wrong»: se muestran las
+              # últimas coincidencias, no las primeras del log.
+              selected = hits[-40:] if hits else lines[-40:]
               if selected:
                   print("::error::---- %s ----" % name)
               for line in selected:
