@@ -397,14 +397,18 @@
             </li>
             <li class="install-step">
               <span class="step-number">04</span>
-              <div><h3>Por qué no lo hace la app</h3><p>Cambiar la zona exige <code>SET_TIME_ZONE</code>, un permiso de nivel <code>signature|privileged|role</code> reservado a aplicaciones del sistema o del fabricante. Escribir <code>time_zone</code> en los ajustes globales no aplica el cambio. Ninguna app instalada por el usuario puede hacerlo sin root: por eso la app guía en lugar de prometer un cambio automático.</p></div>
+              <div><h3>Por qué no lo hace la app</h3><p>Cambiar la zona exige <code>SET_TIME_ZONE</code>, un permiso de nivel <code>signature|privileged|role</code> reservado a aplicaciones del sistema o del fabricante. Escribir <code>time_zone</code> en los ajustes globales no aplica el cambio: por eso la app guía en lugar de prometer un cambio automático.</p></div>
             </li>
             <li class="install-step">
               <span class="step-number">05</span>
-              <div><h3>Recordatorios</h3><p>La app avisa 7 días antes, 24 horas antes y en el momento de la transición, y se reprograma al reiniciar. Solo envía notificaciones locales: no usa servidores ni conexión a Internet.</p></div>
+              <div><h3>Opción con PC, sin root</h3><p>El shell de Android sí tiene ese permiso. Con el cable y la depuración USB: <code>adb shell cmd alarm set-timezone America/Santo_Domingo</code> y <code>adb shell settings put global auto_time_zone 0</code>. Para volver: <code>adb shell cmd alarm set-timezone America/Havana</code>. La app incluye estos comandos en su manual y los copia con un toque. Capturas en <a href="https://github.com/yhquintero/Huso-Horario-Cuba-2026-2027/tree/main/docs/capturas"><code>docs/capturas/</code></a>.</p></div>
             </li>
             <li class="install-step">
               <span class="step-number">06</span>
+              <div><h3>Recordatorios</h3><p>La app avisa 7 días antes, 24 horas antes y en el momento de la transición, y se reprograma al reiniciar. Solo envía notificaciones locales: no usa servidores ni conexión a Internet.</p></div>
+            </li>
+            <li class="install-step">
+              <span class="step-number">07</span>
               <div><h3>Comprueba el archivo</h3><p>Compara el SHA-256 del APK con el publicado en <code>dist/SHA256SUMS</code> y verifica la firma con <code>apksigner verify --print-certs</code>. La huella del certificado del proyecto está publicada en <code>android/keystore/README.md</code>.</p></div>
             </li>
           </ol>

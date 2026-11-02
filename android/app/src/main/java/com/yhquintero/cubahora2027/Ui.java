@@ -15,6 +15,7 @@ final class Ui {
     static final int NAVY = 0xFF10213B;
     static final int NAVY_DEEP = 0xFF0B1526;
     static final int INK = 0xFF14233B;
+    static final int INK_SOFT = 0xFF34445D;
     static final int MUTED = 0xFF67758A;
     static final int LINE = 0xFFE2E7EF;
     static final int CANVAS = 0xFFF5F7FB;
