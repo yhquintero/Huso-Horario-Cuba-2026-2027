@@ -14,7 +14,7 @@ Copia instalable de **Cuba Hora 2027** para Android, generada por
 
 | Archivo | Versión | Tamaño | SHA-256 |
 |---|---|---:|---|
-| `CubaHora2027-v1.3.0.apk` | 1.3.0 (versionCode 4) | 114,575 bytes | `CE82C1E3405D44D3E414E7D1ECDB71B15991C578EFF0632F01669711026D9D4F` |
+| `CubaHora2027-v1.3.0.apk` | 1.3.0 (versionCode 4) | 114,829 bytes | `E30197E65FF09191EBFD7F1519E2F192BE8A0D6A5ADA8D4B5D1E295EFF2A4E56` |
 
 - **Android mínimo:** 6.0 (API 23, el mínimo de Shizuku). Probado con el flujo
   de compilación para API 34; funciona en Samsung Galaxy S22 y en otros
