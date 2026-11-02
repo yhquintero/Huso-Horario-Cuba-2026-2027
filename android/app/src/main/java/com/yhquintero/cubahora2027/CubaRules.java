@@ -32,6 +32,17 @@ public final class CubaRules {
     /** 7 de noviembre de 2027, 01:00 local con UTC-04:00 = 05:00 UTC. */
     public static final long CHANGE_2027 = utc(2027, 11, 7, 5, 0);
 
+    /** Nombre del perfil que la app instala en el teléfono. */
+    public static final String PROFILE_NAME = "Cuba 2026-2027";
+
+    /** 1 de noviembre de 2026, 00:00 con UTC-04:00 = 04:00 UTC: inicio del perfil. */
+    public static final long PROFILE_START = utc(2026, 11, 1, 4, 0);
+
+    /** Tramo que cubre el perfil, en texto. */
+    public static String profileRangeLabel() {
+        return "del 01/11/2026 al 07/11/2027";
+    }
+
     private CubaRules() {
     }
 

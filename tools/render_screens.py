@@ -266,8 +266,10 @@ def header(screen: Screen) -> None:
 
 
 def main_screen() -> Screen:
-    """Pantalla principal de 1.3.0: estado + un solo botón de cambio automático."""
-    s = Screen()
+    """Pantalla principal de 1.4.0: estado, perfil Cuba 2026-2027 y opciones."""
+    # La app hace scroll; la captura se recorta al contenido, así que se dibuja
+    # en un lienzo más alto para no cortar el último botón.
+    s = Screen(height_dp=980)
     s.status_bar()
     header(s)
 
@@ -277,20 +279,56 @@ def main_screen() -> Screen:
     s.row("Zona horaria", "America/Havana")
     s.row("Desfase del teléfono", "UTC-04:00")
     s.row("Desfase que exige la regla", "UTC-04:00")
-    s.row("Cambio automático", "Listo")
-    s.body("Shizuku autorizado: el 07/11/2027 a la 01:00 la app aplica UTC-05:00 y "
-           "verifica el resultado.", gap=10)
+    s.row("Zona horaria automática", "Activada")
+    # Bloque del cambio automático: etiqueta arriba y valor debajo.
+    s.divider()
+    s.cursor += dp(8)
+    s.cursor = s.draw_text(s.inner_x0, s.cursor, "Cambio automático", 12, MUTED,
+                           max_width=s.inner_x1 - s.inner_x0)
+    s.cursor = s.draw_text(s.inner_x0, s.cursor, "Desactivado", 15.5, AMBER_DEEP, bold=True,
+                           max_width=s.inner_x1 - s.inner_x0)
+    s.cursor = s.draw_text(s.inner_x0, s.cursor,
+                           "Sin canal: ni Shizuku ni root",
+                           12.5, MUTED, max_width=s.inner_x1 - s.inner_x0)
     s.card_end()
 
-    # Acciones
+    # Perfil Cuba 2026-2027
     s.card_start(top_margin=14)
-    s.draw_text(s.inner_x0, s.cursor, "CÓMO AJUSTARLO", 11.5, MUTED, bold=True)
-    s.cursor += dp(24)
-    s.body("Android solo deja cambiar la zona a aplicaciones del sistema. La app usa "
-           "Shizuku, autorizado una vez, para ejecutar el cambio y comprobarlo.", gap=0)
+    header_row(s, "PERFIL CUBA 2026-2027", "UTC-04:00", BLUE_PALE, BLUE_DARK)
+    s.cursor += dp(6)
+    s.cursor = s.draw_text(s.inner_x0, s.cursor, "Desde el 01/11/2026 hasta el 07/11/2027",
+                           15, INK, bold=True, max_width=s.inner_x1 - s.inner_x0)
+    s.box([("UTC−04:00 en todo ese tramo y UTC−05:00 a partir del 07/11/2027 a la 01:00. "
+            "Al instalarlo, el teléfono queda en la zona fija equivalente y la app aplica "
+            "el cambio sola, comprobando el resultado con el sistema.", 13, INK_SOFT, False)],
+          gap=8)
     s.cursor += dp(12)
-    s.button("Activar el cambio automático")
+    s.button("Instalar el perfil y activarlo")
     s.button("Probar ahora sin esperar a 2027", primary=False, y=s.cursor + dp(10))
+    s.card_end()
+    return s
+
+
+def options_screen() -> Screen:
+    """Detalle de la tarjeta MÁS OPCIONES PARA ACTIVARLO."""
+    s = Screen(height_dp=760)
+    s.status_bar()
+    s.draw_text(dp(20), s.y, "Detalle · más opciones", 13, MUTED, bold=True)
+    s.y += dp(26)
+
+    s.card_start()
+    s.draw_text(s.inner_x0, s.cursor, "MÁS OPCIONES PARA ACTIVARLO", 11.5, MUTED, bold=True)
+    s.cursor += dp(24)
+    s.body("Android solo deja cambiar la zona horaria a aplicaciones del sistema: una app "
+           "instalada como esta no puede hacerlo por su cuenta. Cualquiera de estos canales "
+           "sirve; la app usa el primero que esté disponible.", gap=0)
+    s.cursor += dp(12)
+    for index, label in enumerate(("Activar con Shizuku (sin root)",
+                                   "Activar con root (su)",
+                                   "Copiar comandos para ADB",
+                                   "Ajustar a mano en Ajustes")):
+        s.button(label, primary=False, y=s.cursor)
+        s.cursor += dp(10)
     s.card_end()
     return s
 
@@ -315,7 +353,7 @@ def rule_screen() -> Screen:
 
 
 def manual_screen() -> Screen:
-    """Primera tarjeta del manual de 1.3.0: vía automática con Shizuku."""
+    """Primera tarjeta del manual: perfil Cuba 2026-2027 y canales."""
     s = Screen()
     s.status_bar()
     s.draw_text(dp(20), dp(38), "Manual de aplicación", 22, INK, bold=True)
@@ -329,23 +367,23 @@ def manual_screen() -> Screen:
     s.cursor += dp(28)
     s.cursor = s.draw_text(s.inner_x0, s.cursor, "Cambio sin tocar el teléfono", 18, INK,
                            bold=True, max_width=s.inner_x1 - s.inner_x0)
-    s.body("Con Shizuku, la app ejecuta la transición el 7 de noviembre de 2027 a la "
-           "01:00 y verifica el resultado. Shizuku es un servicio gratuito y de código "
-           "abierto que presta el permiso del shell; no requiere root.")
+    s.body("El perfil Cuba 2026-2027 cubre del 01/11/2026 al 07/11/2027: UTC−04:00 y, "
+           "desde el 07/11/2027 a la 01:00, UTC−05:00. Al instalarlo, la app cambia la "
+           "zona sola y verifica el resultado con el sistema. Android reserva ese cambio "
+           "a las apps del sistema, así que hace falta un canal: Shizuku, root o ADB.")
     s.cursor += dp(12)
     for number, text in (
             ("1", "Instala Shizuku desde Play Store o su repositorio de GitHub."),
             ("2", "Activa Opciones de desarrollador y «Depuración inalámbrica»."),
             ("3", "En Shizuku, elige «Emparejar» y pulsa «Iniciar»; para que siga "
                   "activo tras reiniciar, activa «Iniciar al arrancar»."),
-            ("4", "Vuelve a la app y pulsa «Activar el cambio automático».")):
+            ("4", "Vuelve a la app y pulsa «Instalar el perfil y activarlo».")):
         s.draw_text(s.inner_x0, s.cursor, number, 12, BLUE_DARK, bold=True)
         s.cursor = s.draw_text(s.inner_x0 + dp(20), s.cursor, text, 13.5, INK,
                                max_width=s.inner_x1 - s.inner_x0 - dp(20))
         s.cursor += dp(8)
-    s.box([("adb shell cmd alarm set-timezone America/Santo_Domingo", 12.5, INK, False),
-           ("Equivalente manual: lo que la app ejecuta con Shizuku.", 12, MUTED, False)],
-          gap=4)
+    s.body("¿Tienes root? Pulsa «Activar con root (su)»: la app pide permiso al gestor "
+           "de root y ejecuta los mismos comandos.", gap=4)
     s.card_end()
     return s
 
@@ -353,9 +391,10 @@ def manual_screen() -> Screen:
 def build() -> dict[Path, Image.Image]:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     return {
-        OUT_DIR / "01-inicio.png": main_screen().image,
+        OUT_DIR / "01-inicio.png": main_screen().crop(),
         OUT_DIR / "02-regla-del-proyecto.png": rule_screen().crop(),
         OUT_DIR / "03-manual.png": manual_screen().crop(),
+        OUT_DIR / "04-opciones.png": options_screen().crop(),
     }
 
 

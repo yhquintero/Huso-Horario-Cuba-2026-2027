@@ -1,9 +1,10 @@
 # Cuba Hora 2027 · aplicación Android
 
-App nativa de Android que compara el desfase real del teléfono con la regla
-horaria de Cuba de este repositorio y **aplica el cambio sola en la transición**
-si el usuario le concede el canal privilegiado de Shizuku. Sin ese canal explica
-qué zona fija elegir en los ajustes del sistema.
+App nativa de Android que instala el **perfil Cuba 2026-2027** en el teléfono
+(del 01/11/2026 al 07/11/2027), compara el desfase real con la regla del
+repositorio y **aplica el cambio sola en la transición** por el primer canal
+privilegiado disponible: Shizuku (sin root) o root. Sin canal explica qué zona
+fija elegir en los ajustes del sistema.
 
 ![Inicio de la app](../docs/capturas/01-inicio.png)
 
@@ -21,7 +22,9 @@ qué zona fija elegir en los ajustes del sistema.
 | Función | Detalle |
 |---|---|
 | Estado real | Lee la zona efectiva del sistema, su desfase, la hora local y el estado de la zona automática. |
-| **Cambio automático** | Un solo botón: activa el canal, arma las alarmas y aplica el desfase vigente. El **7/11/2027 a la 01:00** cambia a UTC−05:00 sin intervención y verifica el resultado con `getprop persist.sys.timezone`. |
+| **Cambio automático** | Bloque propio en la tarjeta de estado: valor corto («Desactivado») y el detalle del canal debajo, sin partir el texto. |
+| **Perfil Cuba 2026-2027** | Un botón lo instala: activa el canal, arma las alarmas y aplica el desfase vigente. El **7/11/2027 a la 01:00** cambia a UTC−05:00 sin intervención y verifica el resultado con `getprop persist.sys.timezone`. |
+| **Más opciones para activarlo** | Canales alternativos en la misma pantalla: Shizuku, root (`su`), comandos para ADB y ajuste manual en Ajustes. |
 | Regla del proyecto | 2026 completo en UTC−04:00; el **7 de noviembre de 2027 a la 01:00** pasa a UTC−05:00. Sin más cambios definidos después. |
 | Comparación | Indica si el desfase del teléfono coincide con la regla o si queda pendiente, y avisa si la zona automática puede deshacer el ajuste. |
 | Ajuste guiado | Abre los ajustes de fecha y hora y muestra los pasos con la zona fija recomendada: **Santo Domingo** (UTC−04:00) o **Bogotá** (UTC−05:00), con alternativas y el valor GMT equivalente. Los pasos se pueden copiar. |
@@ -33,9 +36,10 @@ qué zona fija elegir en los ajustes del sistema.
 
 | Pantalla | Archivo |
 |---|---|
-| Inicio: estado y botón único | [`docs/capturas/01-inicio.png`](../docs/capturas/01-inicio.png) |
+| Inicio: estado, perfil y opciones | [`docs/capturas/01-inicio.png`](../docs/capturas/01-inicio.png) |
 | Tarjeta de la regla (detalle) | [`docs/capturas/02-regla-del-proyecto.png`](../docs/capturas/02-regla-del-proyecto.png) |
-| Manual: vía automática con Shizuku | [`docs/capturas/03-manual.png`](../docs/capturas/03-manual.png) |
+| Manual: perfil y canales | [`docs/capturas/03-manual.png`](../docs/capturas/03-manual.png) |
+| Más opciones para activarlo | [`docs/capturas/04-opciones.png`](../docs/capturas/04-opciones.png) |
 
 Son renders generados por `tools/render_screens.py` a partir de las medidas, colores y
 textos del propio código (perfil Galaxy S22, 360 × 780 dp, densidad 3). No son capturas
@@ -43,18 +47,30 @@ de un teléfono real: sirven para documentar y revisar el diseño sin instalar e
 Para sustituirlas por capturas reales basta reemplazar los PNG por capturas de tu S22
 con el mismo nombre.
 
-## Cambio automático con Shizuku (un botón)
+## Perfil Cuba 2026-2027
 
-El botón **«Activar el cambio automático»** hace todo en un toque:
+El botón **«Instalar el perfil y activarlo»** hace todo en un toque:
 
-1. Comprueba el canal privilegiado y, si hace falta, pide autorización a Shizuku.
+1. Elige canal: Shizuku si está autorizado; si no, root; si no hay ninguno, abre
+   el selector de canales.
 2. Arma las alarmas de los avisos y de la transición del **7 de noviembre de 2027, 01:00**.
 3. Aplica el desfase vigente y **verifica** el resultado leyendo `persist.sys.timezone`.
 
-Requisitos (una sola vez): instalar [Shizuku](https://github.com/RikkaApps/Shizuku)
-(Play Store o GitHub), activar «Depuración inalámbrica» y pulsar *Emparejar* →
-*Iniciar* dentro de Shizuku. No requiere root. Si quieres que siga activo tras
-reiniciar, activa «Iniciar al arrancar» en Shizuku.
+La tarjeta del perfil deja claro el tramo que cubre: **del 01/11/2026 al
+07/11/2027**, UTC−04:00 en todo ese tiempo y UTC−05:00 a partir de la transición.
+
+### Canales para activarlo
+
+| Canal | Qué necesitas | Cómo se activa en la app |
+|---|---|---|
+| **Shizuku** (sin root) | Instalarlo, activar «Depuración inalámbrica» y pulsar *Emparejar* → *Iniciar* | «Activar con Shizuku» o el botón del perfil |
+| **Root** | Teléfono rooteado con gestor operativo | «Activar con root (su)»: pide permiso al gestor y ejecuta los mismos comandos |
+| **ADB** | PC, cable y depuración USB | «Copiar comandos para ADB» deja los tres comandos en el portapapeles |
+| **Manual** | Solo el teléfono | «Ajustar a mano en Ajustes» con la zona fija recomendada |
+
+Con Shizuku conviene activar «Iniciar al arrancar» para que el canal siga vivo
+después de reiniciar; con root, el cambio funciona tras reiniciar siempre que el
+gestor conceda `su` sin preguntar.
 
 Qué ejecuta exactamente, como shell (UID 2000):
 

@@ -45,6 +45,8 @@ public class MainActivity extends Activity {
     private TextView requiredValue;
     private TextView autoValue;
     private TextView automationValue;
+    private TextView automationDetail;
+    private TextView profilePill;
     private TextView nextValue;
     private TextView rulePill;
     private TextView coverageValue;
@@ -68,6 +70,7 @@ public class MainActivity extends Activity {
             ReminderScheduler.scheduleNext(this);
         }
         requestNotificationPermissionIfNeeded();
+        probeRootInBackground();
     }
 
     @Override
@@ -154,7 +157,19 @@ public class MainActivity extends Activity {
         deviceTimeValue = addRow(status, "Hora del teléfono", "…", false);
         cubaTimeValue = addRow(status, "Hora de Cuba según la regla", "…", false);
         autoValue = addRow(status, "Zona horaria automática", "…", false);
-        automationValue = addRow(status, "Cambio automático", "…", true);
+
+        // Etiqueta arriba y valor debajo: el estado del cambio automático es
+        // largo («Desactivado · Shizuku detenido · ábrelo o usa root») y en una
+        // fila a dos columnas se partía y se cortaba.
+        status.addView(Ui.divider(this));
+        status.addView(Ui.spacer(this, 8f));
+        status.addView(Ui.text(this, "Cambio automático", 12f, Ui.MUTED, false));
+        automationValue = Ui.text(this, "…", 15.5f, Ui.INK, true);
+        automationValue.setPadding(0, dp(2), 0, 0);
+        status.addView(automationValue);
+        automationDetail = Ui.text(this, "", 12.5f, Ui.MUTED, false);
+        automationDetail.setPadding(0, dp(4), 0, 0);
+        status.addView(automationDetail);
 
         hintValue = Ui.text(this, "", 12.5f, Ui.MUTED, false);
         hintValue.setPadding(0, dp(10), 0, 0);
@@ -163,28 +178,44 @@ public class MainActivity extends Activity {
 
         column.addView(Ui.spacer(this, 14f));
 
-        // Acciones
-        LinearLayout actions = Ui.card(this);
-        actions.addView(Ui.text(this, "CÓMO AJUSTARLO", 11.5f, Ui.MUTED, true));
-        actions.addView(Ui.spacer(this, 8f));
-        TextView why = Ui.text(this,
-                "Android solo deja cambiar la zona horaria a aplicaciones del sistema: "
-                        + "una app instalada como esta no puede hacerlo. La app compara tu "
-                        + "teléfono con la regla y te indica la zona exacta que debes elegir "
-                        + "en los ajustes.", 13f, Ui.MUTED, false);
-        actions.addView(why);
-        actions.addView(Ui.spacer(this, 12f));
+        // Perfil Cuba 2026-2027: lo que se instala en el teléfono
+        LinearLayout profile = Ui.card(this);
+        LinearLayout profileTop = new LinearLayout(this);
+        profileTop.setOrientation(LinearLayout.HORIZONTAL);
+        profileTop.setGravity(Gravity.CENTER_VERTICAL);
+        profileTop.addView(Ui.text(this, "PERFIL "
+                        + CubaRules.PROFILE_NAME.toUpperCase(Locale.US), 11.5f, Ui.MUTED, true),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        profilePill = Ui.pill(this, "…", Ui.BLUE_PALE, Ui.BLUE_DARK);
+        profileTop.addView(profilePill);
+        profile.addView(profileTop);
 
-        primaryButton = Ui.button(this, "Activar el cambio automático", true);
+        profile.addView(Ui.spacer(this, 10f));
+        profile.addView(Ui.text(this, "Desde el 01/11/2026 hasta el 07/11/2027",
+                15f, Ui.INK, true));
+        profile.addView(Ui.spacer(this, 6f));
+        TextView profileText = Ui.text(this,
+                "UTC−04:00 en todo ese tramo y UTC−05:00 a partir del 07/11/2027 a la "
+                        + "01:00. Al instalarlo, el teléfono queda en la zona fija "
+                        + "equivalente y la app aplica el cambio sola, comprobando el "
+                        + "resultado con el sistema.", 13f, Ui.INK_SOFT, false);
+        profileText.setBackground(Ui.rounded(this, Ui.CANVAS, 12f, null));
+        int profilePad = dp(12);
+        profileText.setPadding(profilePad, dp(10), profilePad, dp(10));
+        profile.addView(profileText, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        profile.addView(Ui.spacer(this, 12f));
+        primaryButton = Ui.button(this, "Instalar el perfil y activarlo", true);
         primaryButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 onPrimaryAction();
             }
         });
-        actions.addView(primaryButton, fullWidth());
+        profile.addView(primaryButton, fullWidth());
 
-        actions.addView(Ui.spacer(this, 10f));
+        profile.addView(Ui.spacer(this, 10f));
         testButton = Ui.button(this, "Probar ahora sin esperar a 2027", false);
         testButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -192,10 +223,54 @@ public class MainActivity extends Activity {
                 runAutomation(true);
             }
         });
-        actions.addView(testButton, fullWidth());
+        profile.addView(testButton, fullWidth());
+        column.addView(profile);
+
+        column.addView(Ui.spacer(this, 14f));
+
+        // Más opciones para activar el cambio automático
+        LinearLayout actions = Ui.card(this);
+        actions.addView(Ui.text(this, "MÁS OPCIONES PARA ACTIVARLO", 11.5f, Ui.MUTED, true));
+        actions.addView(Ui.spacer(this, 8f));
+        TextView why = Ui.text(this,
+                "Android solo deja cambiar la zona horaria a aplicaciones del sistema: una "
+                        + "app instalada como esta no puede hacerlo por su cuenta. Cualquiera "
+                        + "de estos canales sirve; la app usa el primero que esté disponible.",
+                13f, Ui.MUTED, false);
+        actions.addView(why);
+
+        actions.addView(Ui.spacer(this, 12f));
+        Button useShizuku = Ui.button(this, "Activar con Shizuku (sin root)", false);
+        useShizuku.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                onShizukuOption();
+            }
+        });
+        actions.addView(useShizuku, fullWidth());
 
         actions.addView(Ui.spacer(this, 10f));
-        Button openSettings = Ui.button(this, "Abrir ajustes de fecha y hora", false);
+        Button useRoot = Ui.button(this, "Activar con root (su)", false);
+        useRoot.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                activateWithRoot();
+            }
+        });
+        actions.addView(useRoot, fullWidth());
+
+        actions.addView(Ui.spacer(this, 10f));
+        Button adb = Ui.button(this, "Copiar comandos para ADB", false);
+        adb.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                copyAdbCommands();
+            }
+        });
+        actions.addView(adb, fullWidth());
+
+        actions.addView(Ui.spacer(this, 10f));
+        Button openSettings = Ui.button(this, "Ajustar a mano en Ajustes", false);
         openSettings.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -383,22 +458,52 @@ public class MainActivity extends Activity {
 
         boolean autoReady = AutoSwitch.canApplyNow(this);
         boolean autoOn = AutoSwitch.isEnabled(this);
-        automationValue.setText(autoOn
-                ? (autoReady ? "Activado · " + AutoSwitch.channelStatus(this)
-                : "Activado · " + AutoSwitch.channelStatus(this))
-                : (autoReady ? "Listo para activar" : "Desactivado · "
-                + AutoSwitch.channelStatus(this)));
+
+        // Valor corto en su propia línea y detalle debajo: el estado completo
+        // («Desactivado · Shizuku detenido · ábrelo o usa root») no cabe en una
+        // fila a dos columnas y antes se partía y se cortaba.
+        if (autoOn && autoReady) {
+            automationValue.setText("Activo con " + AutoSwitch.channelName());
+        } else if (autoOn) {
+            automationValue.setText("Activo · canal no disponible");
+        } else {
+            automationValue.setText("Desactivado");
+        }
         automationValue.setTextColor(autoOn && autoReady ? Ui.MINT_DEEP
                 : (autoReady ? Ui.BLUE_DARK : Ui.AMBER_DEEP));
+
+        long nextAuto = CubaRules.nextTransition(now);
+        String detail;
+        if (autoOn && autoReady) {
+            detail = nextAuto > 0
+                    ? "Cambia solo el " + formatTransition(nextAuto)
+                    + " y comprueba el resultado."
+                    : "No quedan transiciones definidas en la regla.";
+        } else if (autoOn) {
+            detail = AutoSwitch.channelStatus(this)
+                    + " · el cambio de 2027 no se aplicará: ábrelo o ajusta a mano.";
+        } else if (autoReady) {
+            detail = "Canal listo (" + AutoSwitch.channelName()
+                    + "). Pulsa «Instalar el perfil y activarlo».";
+        } else {
+            detail = AutoSwitch.channelStatus(this)
+                    + " · pulsa «Instalar el perfil y activarlo» para elegir canal.";
+        }
+        automationDetail.setText(detail);
+
+        if (profilePill != null) {
+            profilePill.setText(CubaRules.labelForMinutes(required));
+            profilePill.setTextColor(matches ? Ui.MINT_DEEP : Ui.AMBER_DEEP);
+            profilePill.setBackground(Ui.rounded(this,
+                    matches ? Ui.MINT_PALE : Ui.AMBER_PALE, 999f, null));
+        }
 
         if (autoReady && autoOn) {
             primaryButton.setText(matches
                     ? "Reaplicar · el teléfono ya coincide"
                     : "Aplicar ahora " + CubaRules.labelForMinutes(required));
-        } else if (autoReady) {
-            primaryButton.setText("Activar el cambio automático");
         } else {
-            primaryButton.setText("Activar el cambio automático (configurar)");
+            primaryButton.setText("Instalar el perfil y activarlo");
         }
         testButton.setVisibility(autoReady ? View.VISIBLE : View.GONE);
 
@@ -488,7 +593,7 @@ public class MainActivity extends Activity {
     // Cambio automático
     // ------------------------------------------------------------------
 
-    /** Un solo toque: configura el canal, activa y aplica el desfase vigente. */
+    /** Un solo toque: elige canal, activa el cambio y aplica el desfase vigente. */
     private void onPrimaryAction() {
         if (AutoSwitch.canApplyNow(this)) {
             AutoSwitch.setEnabled(this, true);
@@ -501,7 +606,170 @@ public class MainActivity extends Activity {
             ShizukuChannel.requestPermission();
             return;
         }
-        showAutomationHelp();
+        showChannelOptions();
+    }
+
+    /** Opción 1: Shizuku (sin root). */
+    private void onShizukuOption() {
+        if (AutoSwitch.shizukuReady()) {
+            AutoSwitch.setEnabled(this, true);
+            AutoSwitch.arm(this);
+            runAutomation(false);
+            return;
+        }
+        if (ShizukuChannel.installed(this) && ShizukuChannel.running()) {
+            ShizukuChannel.requestPermission();
+            return;
+        }
+        openShizuku();
+    }
+
+    /** Abre Shizuku si está instalado; si no, explica cómo instalarlo. */
+    private void openShizuku() {
+        try {
+            Intent intent = getPackageManager()
+                    .getLaunchIntentForPackage(ShizukuChannel.SHIZUKU_PACKAGE);
+            if (intent != null) {
+                startActivity(intent);
+                return;
+            }
+        } catch (Throwable ignored) {
+            // Se ofrece la explicación con el enlace de descarga.
+        }
+        showShizukuHelp();
+    }
+
+    /** Comprueba root en segundo plano al abrir la app, sin bloquear la interfaz. */
+    private void probeRootInBackground() {
+        if (RootChannel.checked()) {
+            return;
+        }
+        Thread worker = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                RootChannel.probe();
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        refresh();
+                    }
+                });
+            }
+        }, "cuba-root-probe");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    /** Opción 2: root. Comprueba su y, si responde, aplica el cambio. */
+    private void activateWithRoot() {
+        toast("Comprobando root…");
+        Thread worker = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                final boolean root = RootChannel.probe();
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        refresh();
+                        if (root) {
+                            AutoSwitch.setEnabled(MainActivity.this, true);
+                            AutoSwitch.arm(MainActivity.this);
+                            runAutomation(false);
+                        } else {
+                            showRootHelp();
+                        }
+                    }
+                });
+            }
+        }, "cuba-root");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    /** Opción 3: copiar los comandos para el shell de ADB desde un PC. */
+    private void copyAdbCommands() {
+        long now = System.currentTimeMillis();
+        String zoneId = OffsetGuide.zoneIdFor(CubaRules.offsetMinutes(now));
+        String commands = "adb shell settings put global auto_time_zone 0\n"
+                + "adb shell cmd alarm set-timezone " + zoneId + "\n"
+                + "adb shell getprop persist.sys.timezone\n"
+                + "# volver a la zona de Cuba: adb shell cmd alarm set-timezone America/Havana";
+        copyToClipboard(commands);
+        new AlertDialog.Builder(this)
+                .setTitle("Comandos para ADB")
+                .setMessage("Copiados al portapapeles. Con el cable, la depuración USB "
+                        + "activada y «adb shell» no necesitas root ni Shizuku.\n\n"
+                        + commands
+                        + "\n\nEl perfil Cuba 2026-2027 hace esto mismo en 2027, "
+                        + "pero ADB solo cambia la zona de hoy.")
+                .setPositiveButton("Entendido", null)
+                .setNeutralButton("Ver el manual", (dialog, which) ->
+                        startActivity(new Intent(MainActivity.this, ManualActivity.class)))
+                .show();
+    }
+
+    /** Diálogo con los tres canales disponibles. */
+    private void showChannelOptions() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        int pad = dp(20);
+        box.setPadding(pad, dp(8), pad, dp(8));
+        box.addView(Ui.text(this, AutoSwitch.channelStatus(this)
+                + ". Elige un canal para el cambio de 2027:", 13.5f, Ui.INK, false));
+
+        final AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Activarlo con un canal")
+                .setView(box)
+                .setNegativeButton("Cerrar", null)
+                .create();
+
+        box.addView(Ui.spacer(this, 12f));
+        Button shizuku = Ui.button(this, "Usar Shizuku (sin root)", true);
+        shizuku.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                dialog.dismiss();
+                onShizukuOption();
+            }
+        });
+        box.addView(shizuku, fullWidth());
+
+        box.addView(Ui.spacer(this, 10f));
+        Button root = Ui.button(this, "Usar root (su)", false);
+        root.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                dialog.dismiss();
+                activateWithRoot();
+            }
+        });
+        box.addView(root, fullWidth());
+
+        box.addView(Ui.spacer(this, 10f));
+        Button adb = Ui.button(this, "Copiar comandos para ADB", false);
+        adb.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                dialog.dismiss();
+                copyAdbCommands();
+            }
+        });
+        box.addView(adb, fullWidth());
+
+        dialog.show();
+    }
+
+    /** Explica qué hacer si no hay root operativo. */
+    private void showRootHelp() {
+        new AlertDialog.Builder(this)
+                .setTitle("Root no disponible")
+                .setMessage("«su» no respondió: este teléfono no tiene root operativo o el "
+                        + "gestor no dio permiso a la app.\n\nPuedes usar Shizuku (sin root) o "
+                        + "los comandos de ADB desde un PC; el cambio se aplica igual.")
+                .setPositiveButton("Usar Shizuku", (dialog, which) -> onShizukuOption())
+                .setNeutralButton("Copiar ADB", (dialog, which) -> copyAdbCommands())
+                .setNegativeButton("Cerrar", null)
+                .show();
     }
 
     private void onShizukuPermission(int requestCode, int grantResult) {
@@ -571,8 +839,8 @@ public class MainActivity extends Activity {
                 title = "Cambio aplicado";
                 message = "La zona del teléfono es ahora " + label + " y está verificada.\n\n"
                         + "La transición del 7 de noviembre de 2027 se aplicará sola a la "
-                        + "01:00, siempre que Shizuku siga activo. Si se detiene, recibirás "
-                        + "un aviso para hacerlo en un toque.";
+                        + "01:00, siempre que el canal siga activo (" + AutoSwitch.channelName()
+                        + "). Si se detiene, recibirás un aviso para hacerlo en un toque.";
                 break;
             case UNVERIFIED:
                 title = "Cambio sin verificar";
@@ -583,13 +851,13 @@ public class MainActivity extends Activity {
             case NO_CHANNEL:
                 title = "Falta el canal privilegiado";
                 message = "Android no permite a una app instalada cambiar la zona por sí "
-                        + "sola. Para el cambio automático hace falta Shizuku "
-                        + "(" + AutoSwitch.channelStatus(this) + ").\n\n"
+                        + "sola. Para el cambio automático hace falta Shizuku, root o los "
+                        + "comandos de ADB (" + AutoSwitch.channelStatus(this) + ").\n\n"
                         + "Mientras tanto puedes aplicar " + label + " desde los ajustes.";
                 break;
             default:
                 title = "No se pudo aplicar";
-                message = "Shizuku respondió con un error al ejecutar el cambio a " + label
+                message = "El canal respondió con un error al ejecutar el cambio a " + label
                         + ".\n\nPrueba de nuevo o usa los ajustes del sistema."
                         + (manualTest ? "" : "");
                 break;
@@ -609,8 +877,8 @@ public class MainActivity extends Activity {
                 .show();
     }
 
-    /** Explica cómo habilitar el canal automático. */
-    private void showAutomationHelp() {
+    /** Explica cómo instalar y arrancar Shizuku. */
+    private void showShizukuHelp() {
         String status = AutoSwitch.channelStatus(this);
         String message = "Estado: " + status + "\n\n"
                 + "El cambio automático necesita que esta app pueda ejecutar el comando "
@@ -619,11 +887,12 @@ public class MainActivity extends Activity {
                 + "2. Activa Opciones de desarrollador y Depuración inalámbrica.\n"
                 + "3. En Shizuku, «Emparejar» + «Iniciar» (y «Iniciar al arrancar» si "
                 + "quieres que siga tras reiniciar).\n"
-                + "4. Vuelve aquí y pulsa «Activar el cambio automático».\n\n"
-                + "Si prefieres no instalarlo, la app seguirá avisándote y podrás aplicar "
-                + "el cambio desde Ajustes en un minuto.";
+                + "4. Vuelve aquí y pulsa «Instalar el perfil y activarlo».\n\n"
+                + "Si el teléfono tiene root, puedes usar «Activar con root (su)» sin "
+                + "instalar nada. Y sin ningún canal, la app seguirá avisándote y podrás "
+                + "aplicar el cambio desde Ajustes en un minuto.";
         new AlertDialog.Builder(this)
-                .setTitle("Cambio automático")
+                .setTitle("Shizuku")
                 .setMessage(message)
                 .setPositiveButton("Abrir Shizuku", (dialog, which) -> {
                     try {
