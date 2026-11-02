@@ -1,7 +1,6 @@
 package com.yhquintero.cubahora2027;
 
 import android.Manifest;
-import android.app.Activity;
 import android.app.AlarmManager;
 import android.app.AlertDialog;
 import android.content.ClipData;
@@ -31,25 +30,22 @@ import java.util.TimeZone;
 
 /**
  * Pantalla principal: muestra el estado real del teléfono, la regla del
- * proyecto y las acciones disponibles.
+ * proyecto y los pasos para ajustar la zona desde los ajustes del sistema.
  */
 public class MainActivity extends Activity {
-
-    private static final String ADB_COMMAND =
-            "adb shell pm grant com.yhquintero.cubahora2027 android.permission.WRITE_SECURE_SETTINGS";
 
     private TextView statusPill;
     private TextView zoneValue;
     private TextView offsetValue;
     private TextView deviceTimeValue;
     private TextView cubaTimeValue;
-    private TextView autoValue;
-    private TextView permissionValue;
     private TextView requiredValue;
+    private TextView autoValue;
     private TextView nextValue;
     private TextView coverageValue;
+    private TextView hintValue;
     private TextView remindersHint;
-    private Button applyButton;
+    private Button primaryButton;
     private Button exactAlarmButton;
     private CheckBox remindersBox;
     private boolean bindingReminders;
@@ -61,6 +57,7 @@ public class MainActivity extends Activity {
         setContentView(buildUi());
         refresh();
         ReminderScheduler.scheduleNext(this);
+        requestNotificationPermissionIfNeeded();
     }
 
     @Override
@@ -102,7 +99,7 @@ public class MainActivity extends Activity {
         titles.setOrientation(LinearLayout.VERTICAL);
         titles.setPadding(dp(14), 0, 0, 0);
         TextView title = Ui.text(this, "Cuba Hora 2027", 22f, Ui.INK, true);
-        TextView subtitle = Ui.text(this, "Ajuste del huso horario · 2026–2027", 13.5f, Ui.MUTED, false);
+        TextView subtitle = Ui.text(this, "Huso horario · 2026–2027", 13.5f, Ui.MUTED, false);
         titles.addView(title);
         titles.addView(subtitle);
         header.addView(titles, new LinearLayout.LayoutParams(0,
@@ -125,69 +122,59 @@ public class MainActivity extends Activity {
 
         status.addView(Ui.spacer(this, 8f));
         zoneValue = addRow(status, "Zona horaria", "…", true);
-        offsetValue = addRow(status, "Desfase real del sistema", "…", true);
+        offsetValue = addRow(status, "Desfase del teléfono", "…", true);
+        requiredValue = addRow(status, "Desfase que exige la regla", "…", true);
         deviceTimeValue = addRow(status, "Hora del teléfono", "…", false);
-        cubaTimeValue = addRow(status, "Hora de Cuba según la regla", "…", true);
-        requiredValue = addRow(status, "Desfase que exige la regla", "…", false);
+        cubaTimeValue = addRow(status, "Hora de Cuba según la regla", "…", false);
         autoValue = addRow(status, "Zona horaria automática", "…", false);
-        permissionValue = addRow(status, "Permiso para cambiar la zona", "…", false);
+
+        hintValue = Ui.text(this, "", 12.5f, Ui.MUTED, false);
+        hintValue.setPadding(0, dp(10), 0, 0);
+        status.addView(hintValue);
         column.addView(status);
 
         column.addView(Ui.spacer(this, 14f));
 
         // Acciones
         LinearLayout actions = Ui.card(this);
-        actions.addView(Ui.text(this, "ACCIONES", 11.5f, Ui.MUTED, true));
-        actions.addView(Ui.spacer(this, 10f));
+        actions.addView(Ui.text(this, "CÓMO AJUSTARLO", 11.5f, Ui.MUTED, true));
+        actions.addView(Ui.spacer(this, 8f));
+        TextView why = Ui.text(this,
+                "Android solo deja cambiar la zona horaria a aplicaciones del sistema: "
+                        + "una app instalada como esta no puede hacerlo. La app compara tu "
+                        + "teléfono con la regla y te indica la zona exacta que debes elegir "
+                        + "en los ajustes.", 13f, Ui.MUTED, false);
+        actions.addView(why);
+        actions.addView(Ui.spacer(this, 12f));
 
-        applyButton = Ui.button(this, "Ajustar el teléfono a la regla", true);
-        applyButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                applyRule();
-            }
-        });
-        actions.addView(applyButton, fullWidth());
-
-        actions.addView(Ui.spacer(this, 10f));
-        Button manual = Ui.button(this, "Abrir ajustes de fecha y hora", false);
-        manual.setOnClickListener(new View.OnClickListener() {
+        primaryButton = Ui.button(this, "Abrir ajustes de fecha y hora", true);
+        primaryButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 ZoneController.openDateTimeSettings(MainActivity.this);
             }
         });
-        actions.addView(manual, fullWidth());
+        actions.addView(primaryButton, fullWidth());
 
         actions.addView(Ui.spacer(this, 10f));
-        Button havana = Ui.button(this, "Usar zona de Cuba (America/Havana)", false);
-        havana.setOnClickListener(new View.OnClickListener() {
+        Button steps = Ui.button(this, "Ver los pasos y la zona a elegir", false);
+        steps.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                applyZone(ZoneController.HAVANA_ZONE_ID);
+                showSteps();
             }
         });
-        actions.addView(havana, fullWidth());
+        actions.addView(steps, fullWidth());
 
         actions.addView(Ui.spacer(this, 10f));
-        Button restore = Ui.button(this, "Restaurar zona automática", false);
-        restore.setOnClickListener(new View.OnClickListener() {
+        Button guide = Ui.button(this, "Abrir guía del proyecto", false);
+        guide.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                restoreAutomatic();
+                startActivity(new Intent(MainActivity.this, GuideActivity.class));
             }
         });
-        actions.addView(restore, fullWidth());
-
-        actions.addView(Ui.spacer(this, 10f));
-        Button permissions = Ui.button(this, "Cómo habilitar el cambio de zona", false);
-        permissions.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                showPermissionHelp();
-            }
-        });
-        actions.addView(permissions, fullWidth());
+        actions.addView(guide, fullWidth());
         column.addView(actions);
 
         column.addView(Ui.spacer(this, 14f));
@@ -204,15 +191,6 @@ public class MainActivity extends Activity {
                         + "El 7 de noviembre de 2027 a la 01:00 la regla pasa a UTC−05:00. "
                         + "Después de esa fecha no hay más cambios definidos.", 13f, Ui.MUTED, false);
         rule.addView(ruleText);
-        rule.addView(Ui.spacer(this, 10f));
-        Button guide = Ui.button(this, "Abrir guía del proyecto", false);
-        guide.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                startActivity(new Intent(MainActivity.this, GuideActivity.class));
-            }
-        });
-        rule.addView(guide, fullWidth());
         column.addView(rule);
 
         column.addView(Ui.spacer(this, 14f));
@@ -222,7 +200,7 @@ public class MainActivity extends Activity {
         reminders.addView(Ui.text(this, "RECORDATORIOS", 11.5f, Ui.MUTED, true));
         reminders.addView(Ui.spacer(this, 8f));
         remindersBox = new CheckBox(this);
-        remindersBox.setText("Avisarme antes y durante las transiciones");
+        remindersBox.setText("Avisarme antes de cada transición");
         remindersBox.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15f);
         remindersBox.setTextColor(Ui.INK);
         remindersBox.setPadding(0, dp(4), 0, dp(4));
@@ -260,8 +238,8 @@ public class MainActivity extends Activity {
                 "Proyecto independiente y no oficial: no está afiliado a Microsoft, a Samsung "
                         + "ni a una institución del Gobierno de Cuba. La app no se conecta a "
                         + "Internet y no envía datos. Cambiar la zona horaria afecta alarmas, "
-                        + "calendarios y registros: verifica la normativa vigente antes de aplicarla.",
-                11.5f, Ui.MUTED, false);
+                        + "calendarios y registros: verifica la normativa vigente antes de "
+                        + "aplicarla.", 11.5f, Ui.MUTED, false);
         note.setGravity(Gravity.START);
         column.addView(note);
 
@@ -293,43 +271,38 @@ public class MainActivity extends Activity {
     private void refresh() {
         long now = System.currentTimeMillis();
         int required = CubaRules.offsetMinutes(now);
-        String zoneId = ZoneController.currentZoneId(this);
-        int actual = ZoneController.currentOffsetMinutes(this, now);
+        String zoneId = ZoneController.currentZoneId();
+        int actual = ZoneController.currentOffsetMinutes(now);
         boolean auto = ZoneController.autoTimeZoneEnabled(this);
-        boolean canWrite = ZoneController.canWriteSecureSettings(this);
-        boolean havanaManaged = auto && ZoneController.HAVANA_ZONE_ID.equals(zoneId);
+        boolean known = now >= CubaRules.START_2026;
         boolean matches = actual == required;
 
         zoneValue.setText(zoneId);
         offsetValue.setText(CubaRules.labelForMinutes(actual));
+        requiredValue.setText(CubaRules.labelForMinutes(required));
         deviceTimeValue.setText(formatLocal(now, actual));
         cubaTimeValue.setText(formatLocal(now, required));
-        requiredValue.setText(CubaRules.labelForMinutes(required));
         autoValue.setText(auto ? "Activada" : "Desactivada");
-        permissionValue.setText(canWrite ? "Concedido" : "No concedido");
 
-        if (havanaManaged) {
-            setStatus("Zona de Cuba gestionada por el sistema", Ui.MINT_PALE, Ui.MINT_DEEP);
-        } else if (!matches && canWrite) {
-            setStatus("Ajuste pendiente", Ui.AMBER_PALE, Ui.AMBER_DEEP);
-        } else if (!matches) {
-            setStatus("Ajuste pendiente · falta permiso", Ui.AMBER_PALE, Ui.AMBER_DEEP);
-        } else {
+        if (!known) {
+            setStatus("Antes de la regla", Ui.BLUE_PALE, Ui.BLUE_DARK);
+        } else if (matches) {
             setStatus("Coincide con la regla", Ui.MINT_PALE, Ui.MINT_DEEP);
+        } else {
+            setStatus("Ajuste pendiente", Ui.AMBER_PALE, Ui.AMBER_DEEP);
         }
 
-        if (havanaManaged) {
-            applyButton.setText("El sistema ya aplica America/Havana");
-        } else if (!canWrite && !matches) {
-            applyButton.setText("Cómo ajustar la zona del teléfono");
-        } else {
-            applyButton.setText("Ajustar el teléfono a " + CubaRules.labelForMinutes(required));
-        }
+        primaryButton.setText(matches
+                ? "Abrir ajustes (ya coincide)"
+                : "Abrir ajustes · elegir " + CubaRules.labelForMinutes(required));
+
+        hintValue.setText(OffsetGuide.statusHint(auto, matches, zoneId));
 
         long next = CubaRules.nextTransition(now);
         if (next > 0) {
-            int offset = CubaRules.offsetMinutes(next);
-            nextValue.setText(formatTransition(next) + " → " + CubaRules.labelForMinutes(offset));
+            int offsetAfter = CubaRules.offsetMinutes(next);
+            nextValue.setText(formatTransition(next) + " → "
+                    + CubaRules.labelForMinutes(offsetAfter));
         } else {
             nextValue.setText("Ninguna definida después de 2027");
         }
@@ -351,7 +324,8 @@ public class MainActivity extends Activity {
             hint.append("Las notificaciones están bloqueadas en este teléfono. ");
         }
         hint.append(next > 0
-                ? "Aviso 24 h antes y en el momento del cambio."
+                ? "Aviso 7 días antes, 24 h antes y en el momento del cambio. "
+                + "El aviso no cambia la zona: te recuerda hacerlo."
                 : "No quedan transiciones por recordar con la regla actual.");
         remindersHint.setText(hint.toString());
 
@@ -377,7 +351,8 @@ public class MainActivity extends Activity {
     }
 
     private String formatLocal(long epochMillis, int offsetMinutes) {
-        SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss · dd/MM/yyyy", new Locale("es", "ES"));
+        SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss · dd/MM/yyyy",
+                new Locale("es", "ES"));
         format.setTimeZone(TimeZone.getTimeZone("GMT"));
         return format.format(new Date(epochMillis + offsetMinutes * 60000L));
     }
@@ -395,7 +370,7 @@ public class MainActivity extends Activity {
         try {
             return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
         } catch (Throwable error) {
-            return "1.0.0";
+            return "1.1.0";
         }
     }
 
@@ -403,63 +378,21 @@ public class MainActivity extends Activity {
     // Acciones
     // ------------------------------------------------------------------
 
-    private void applyRule() {
+    private void showSteps() {
         long now = System.currentTimeMillis();
         int required = CubaRules.offsetMinutes(now);
-        String zoneId = CubaRules.zoneIdForOffset(required);
-        if (!ZoneController.canWriteSecureSettings(this)) {
-            showPermissionHelp();
-            return;
-        }
-        applyZone(zoneId);
-    }
+        final String stepsText = OffsetGuide.stepsFor(required);
 
-    private void applyZone(String zoneId) {
-        int result = ZoneController.applyZone(this, zoneId);
-        if (result == ZoneController.RESULT_OK) {
-            toast("Zona cambiada a " + zoneId);
-        } else if (result == ZoneController.RESULT_NO_PERMISSION) {
-            showPermissionHelp();
-        } else {
-            toast("El teléfono rechazó el cambio. Usa los ajustes del sistema.");
-        }
-        refresh();
-    }
-
-    private void restoreAutomatic() {
-        int result = ZoneController.restoreAutomatic(this);
-        if (result == ZoneController.RESULT_OK) {
-            toast("Zona automática restaurada (America/Havana).");
-        } else if (result == ZoneController.RESULT_NO_PERMISSION) {
-            showPermissionHelp();
-        } else {
-            toast("No se pudo restaurar. Revisa los ajustes del sistema.");
-        }
-        refresh();
-    }
-
-    private void showPermissionHelp() {
-        final TextView message = Ui.text(this,
-                "Android no permite que una app normal cambie la zona horaria. "
-                        + "Hay dos caminos:\n\n"
-                        + "1) Cambio manual (sin PC)\n"
-                        + "Ajustes → Administración general → Fecha y hora → desactiva "
-                        + "«Zona horaria automática» y elige la zona manualmente.\n\n"
-                        + "2) Cambio directo desde esta app (permiso por ADB)\n"
-                        + "Solo la primera vez, desde un PC con ADB y depuración USB:\n\n"
-                        + ADB_COMMAND + "\n\n"
-                        + "Después de concederlo, esta pantalla aplicará la zona con un toque. "
-                        + "El permiso no requiere root y se puede revocar con pm revoke.",
-                13.5f, Ui.INK, false);
+        final TextView message = Ui.text(this, stepsText, 13.5f, Ui.INK, false);
         message.setTextIsSelectable(true);
         message.setPadding(dp(20), dp(8), dp(20), dp(8));
 
         AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("Habilitar el cambio de zona")
+                .setTitle("Ajustar la zona en este teléfono")
                 .setView(message)
-                .setPositiveButton("Copiar comando", (d, which) -> copyToClipboard(ADB_COMMAND))
-                .setNeutralButton("Ajustes del sistema", (d, which) ->
+                .setPositiveButton("Abrir Ajustes", (d, which) ->
                         ZoneController.openDateTimeSettings(MainActivity.this))
+                .setNeutralButton("Copiar pasos", (d, which) -> copyToClipboard(stepsText))
                 .setNegativeButton("Cerrar", null)
                 .create();
         dialog.show();
@@ -470,11 +403,11 @@ public class MainActivity extends Activity {
             ClipboardManager clipboard =
                     (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
             if (clipboard != null) {
-                clipboard.setPrimaryClip(ClipData.newPlainText("Comando ADB", value));
-                toast("Comando copiado al portapapeles.");
+                clipboard.setPrimaryClip(ClipData.newPlainText("Pasos", value));
+                toast("Pasos copiados al portapapeles.");
             }
         } catch (Throwable error) {
-            toast("No se pudo copiar el comando.");
+            toast("No se pudo copiar el texto.");
         }
     }
 
@@ -495,6 +428,9 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT < 33) {
             return;
         }
+        if (!ReminderScheduler.remindersEnabled(this)) {
+            return;
+        }
         try {
             if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
                     != PackageManager.PERMISSION_GRANTED) {
@@ -506,7 +442,8 @@ public class MainActivity extends Activity {
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                                           int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == 2001) {
             refresh();

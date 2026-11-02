@@ -16,6 +16,7 @@ public final class Notifications {
 
     public static final String CHANNEL_ID = "cambios_hora";
     private static final String TAG = "CubaHora";
+    private static final int ID_WEEK = 3;
     private static final int ID_SOON = 1;
     private static final int ID_CHANGE = 2;
 
@@ -61,7 +62,7 @@ public final class Notifications {
         }
     }
 
-    public static void showChange(Context context, boolean soon) {
+    public static void showChange(Context context, int daysBefore) {
         ensureChannel(context);
         if (!canPost(context)) {
             return;
@@ -75,8 +76,18 @@ public final class Notifications {
             }
             PendingIntent contentIntent = PendingIntent.getActivity(context, 0, openIntent, flags);
 
-            String body = context.getString(
-                    soon ? R.string.notif_body_soon : R.string.notif_body_change);
+            String body;
+            int notificationId;
+            if (daysBefore >= 7) {
+                body = context.getString(R.string.notif_body_week);
+                notificationId = ID_WEEK;
+            } else if (daysBefore >= 1) {
+                body = context.getString(R.string.notif_body_soon);
+                notificationId = ID_SOON;
+            } else {
+                body = context.getString(R.string.notif_body_change);
+                notificationId = ID_CHANGE;
+            }
 
             Notification.Builder builder;
             if (Build.VERSION.SDK_INT >= 26) {
@@ -94,7 +105,7 @@ public final class Notifications {
             NotificationManager manager =
                     (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
             if (manager != null) {
-                manager.notify(soon ? ID_SOON : ID_CHANGE, builder.build());
+                manager.notify(notificationId, builder.build());
             }
         } catch (Throwable error) {
             Log.w(TAG, "No se pudo mostrar la notificación", error);

@@ -6,17 +6,13 @@
       La aplicación NO declara INTERNET: la interfaz y la guía se sirven desde
       los assets locales del propio APK.
 
-      WRITE_SECURE_SETTINGS y SET_TIME_ZONE son permisos de nivel "desarrollo"
-      o "sistema": solo se obtienen si el usuario los concede explícitamente
-      con ADB (pm grant) o en un dispositivo con privilegios. La app funciona
-      sin ellos y, en ese caso, guía al usuario a Ajustes.
+      Tampoco pide SET_TIME_ZONE ni WRITE_SECURE_SETTINGS. En Android,
+      AlarmManager.setTimeZone() exige SET_TIME_ZONE (nivel
+      signature|privileged|role en AOSP) y escribir «time_zone» en
+      Settings.Global no aplica el cambio: SettingsProvider no la observa.
+      Ninguna app instalada por el usuario puede cambiar la zona horaria, así
+      que la app solo lee el estado y guía a los ajustes del sistema.
     -->
-    <uses-permission
-        android:name="android.permission.WRITE_SECURE_SETTINGS"
-        tools:ignore="ProtectedPermissions" />
-    <uses-permission
-        android:name="android.permission.SET_TIME_ZONE"
-        tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

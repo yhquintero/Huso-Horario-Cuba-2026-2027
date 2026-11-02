@@ -2,6 +2,15 @@
 
 Los cambios de este proyecto se anotan aquí para facilitar la revisión de los perfiles y de la guía.
 
+## 2026-11-01 · Android 1.1.0: ajuste guiado y sin permisos de sistema
+
+- Se corrigió un supuesto falso de la versión 1.0.0: en AOSP, `AlarmManager.setTimeZone()` exige `SET_TIME_ZONE` (`signature|privileged|role`) y escribir `time_zone` en `Settings.Global` no aplica el cambio. Una app instalada por el usuario no puede cambiar la zona horaria.
+- La app deja de declarar `WRITE_SECURE_SETTINGS` y `SET_TIME_ZONE` y elimina el flujo que podía informar de un éxito inexistente. Ahora lee el estado real con `TimeZone.getDefault()`, separa el desfase del teléfono del que exige la regla y avisa si la zona automática puede deshacer el ajuste.
+- Se añade `OffsetGuide.java` con los pasos para One UI y la zona fija recomendada por tramo: Santo Domingo (UTC−04:00) y Bogotá (UTC−05:00), con alternativas y el valor GMT equivalente; los pasos se pueden copiar.
+- Los recordatorios pasan a 7 días antes, 24 h antes y en el momento de la transición, y la app solicita permiso de notificaciones al abrirse en Android 13 o superior.
+- `tools/verify_android.py` ahora falla si vuelve a declararse un permiso de sistema, si aparece una escritura de zona o si la interfaz promete un cambio automático.
+- Se actualizan guía web, README, SECURITY, notas de release y la ficha de `dist/`. El APK se recompila y se publica como v1.1.0 con la misma identidad de firma, de modo que actualiza sobre la versión anterior.
+
 ## 2026-11-01 · Aplicación Android y APK firmado
 
 - Se añadió el proyecto Android en `android/`: app nativa sin dependencias externas que compara la zona del teléfono con la regla del repositorio y aplica el cambio cuando el permiso opcional `WRITE_SECURE_SETTINGS` está concedido.

@@ -1,64 +1,60 @@
 package com.yhquintero.cubahora2027;
 
-import android.Manifest;
 import android.app.Activity;
-import android.app.AlarmManager;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.provider.Settings;
 import android.util.Log;
 
 import java.util.TimeZone;
 
 /**
- * Lectura y escritura de la zona horaria del sistema.
+ * Lectura del estado horario del teléfono y apertura de los ajustes del
+ * sistema.
  *
- * <p>Android no permite a una aplicación normal cambiar la zona horaria.
- * La ruta admitida aquí es {@code WRITE_SECURE_SETTINGS}, un permiso de nivel
- * "desarrollo" que el usuario puede conceder con ADB. Sin ese permiso la app
- * solo lee el estado y guía al usuario a los ajustes del sistema.</p>
+ * <p>Android no permite que una aplicación instalada por el usuario cambie la
+ * zona horaria: {@code AlarmManager.setTimeZone()} exige
+ * {@code android.permission.SET_TIME_ZONE}, declarado como
+ * {@code signature|privileged|role} en AOSP, y escribir la clave
+ * {@code time_zone} en {@code Settings.Global} no la aplica (SettingsProvider
+ * no la observa). Por eso esta clase solo lee el estado real y abre la
+ * pantalla de ajustes donde el cambio sí es posible.</p>
  */
 public final class ZoneController {
 
-    public static final int RESULT_OK = 0;
-    public static final int RESULT_NO_PERMISSION = 1;
-    public static final int RESULT_FAILED = 2;
-
     /** Zona de referencia de Cuba en la base de datos IANA. */
     public static final String HAVANA_ZONE_ID = "America/Havana";
-
-    /**
-     * Clave real del ajuste de zona horaria en {@code Settings.Global}.
-     * El SDK no expone una constante pública para ella, así que se usa el
-     * nombre que escribe el sistema ({@code "time_zone"}).
-     */
-    private static final String TIME_ZONE_SETTING = "time_zone";
 
     private static final String TAG = "CubaHora";
 
     private ZoneController() {
     }
 
-    public static String currentZoneId(Context context) {
+    /**
+     * Zona horaria efectiva del proceso, que Android mantiene sincronizada con
+     * la del sistema (se reinicia al recibir ACTION_TIMEZONE_CHANGED).
+     */
+    public static String currentZoneId() {
         try {
-            String id = Settings.Global.getString(context.getContentResolver(), TIME_ZONE_SETTING);
-            if (id != null && id.length() > 0) {
-                return id;
-            }
+            String id = TimeZone.getDefault().getID();
+            return id == null || id.length() == 0 ? "desconocida" : id;
         } catch (Throwable error) {
-            Log.w(TAG, "No se pudo leer el ajuste de zona horaria", error);
+            Log.w(TAG, "No se pudo leer la zona horaria", error);
+            return "desconocida";
         }
-        return TimeZone.getDefault().getID();
     }
 
-    public static int currentOffsetMinutes(Context context, long epochMillis) {
-        String id = currentZoneId(context);
-        TimeZone zone = TimeZone.getTimeZone(id);
-        return zone.getOffset(epochMillis) / 60000;
+    /** Desfase real del sistema respecto a UTC, en minutos, en un instante dado. */
+    public static int currentOffsetMinutes(long epochMillis) {
+        try {
+            return TimeZone.getDefault().getOffset(epochMillis) / 60000;
+        } catch (Throwable error) {
+            Log.w(TAG, "No se pudo leer el desfase", error);
+            return 0;
+        }
     }
 
+    /** Indica si el teléfono ajusta la zona automáticamente (red u operador). */
     public static boolean autoTimeZoneEnabled(Context context) {
         try {
             return Settings.Global.getInt(
@@ -70,89 +66,10 @@ public final class ZoneController {
         }
     }
 
-    public static boolean canWriteSecureSettings(Context context) {
-        try {
-            return context.getPackageManager().checkPermission(
-                    Manifest.permission.WRITE_SECURE_SETTINGS,
-                    context.getPackageName()) == PackageManager.PERMISSION_GRANTED;
-        } catch (Throwable error) {
-            return false;
-        }
-    }
-
-    /**
-     * Fija la zona indicada y desactiva el ajuste automático.
-     * Devuelve uno de los códigos {@code RESULT_*}.
-     */
-    public static int applyZone(Context context, String zoneId) {
-        if (canWriteSecureSettings(context)) {
-            ContentResolver resolver = context.getContentResolver();
-            try {
-                // Desactivar primero el automático evita que la red lo sobrescriba.
-                Settings.Global.putString(resolver, Settings.Global.AUTO_TIME_ZONE, "0");
-                Settings.Global.putString(resolver, TIME_ZONE_SETTING, zoneId);
-            } catch (SecurityException error) {
-                Log.w(TAG, "Sin permiso para escribir la zona", error);
-                return RESULT_NO_PERMISSION;
-            } catch (Throwable error) {
-                Log.w(TAG, "Error al escribir la zona", error);
-                return RESULT_FAILED;
-            }
-
-            String written = null;
-            try {
-                written = Settings.Global.getString(resolver, TIME_ZONE_SETTING);
-            } catch (Throwable ignored) {
-                // Se valida igualmente con el reloj efectivo.
-            }
-
-            TimeZone.setDefault(TimeZone.getTimeZone(zoneId));
-
-            if (written != null && zoneId.equals(written)) {
-                return RESULT_OK;
-            }
-            return zoneId.equals(TimeZone.getDefault().getID()) ? RESULT_OK : RESULT_FAILED;
-        }
-
-        // Alternativa para dispositivos con SET_TIME_ZONE concedido por el fabricante.
-        try {
-            AlarmManager alarms = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-            if (alarms != null) {
-                alarms.setTimeZone(zoneId);
-                TimeZone.setDefault(TimeZone.getTimeZone(zoneId));
-                return RESULT_OK;
-            }
-        } catch (Throwable error) {
-            Log.w(TAG, "setTimeZone no disponible", error);
-        }
-
-        return RESULT_NO_PERMISSION;
-    }
-
-    /** Vuelve a la zona de Cuba con ajuste automático del sistema. */
-    public static int restoreAutomatic(Context context) {
-        if (!canWriteSecureSettings(context)) {
-            return RESULT_NO_PERMISSION;
-        }
-        ContentResolver resolver = context.getContentResolver();
-        try {
-            Settings.Global.putString(resolver, TIME_ZONE_SETTING, HAVANA_ZONE_ID);
-            Settings.Global.putString(resolver, Settings.Global.AUTO_TIME_ZONE, "1");
-            TimeZone.setDefault(TimeZone.getTimeZone(HAVANA_ZONE_ID));
-            return RESULT_OK;
-        } catch (SecurityException error) {
-            return RESULT_NO_PERMISSION;
-        } catch (Throwable error) {
-            Log.w(TAG, "Error al restaurar el automático", error);
-            return RESULT_FAILED;
-        }
-    }
-
     /** Abre la pantalla de fecha y hora del sistema. */
     public static void openDateTimeSettings(Activity activity) {
         try {
-            Intent intent = new Intent(Settings.ACTION_DATE_SETTINGS);
-            activity.startActivity(intent);
+            activity.startActivity(new Intent(Settings.ACTION_DATE_SETTINGS));
             return;
         } catch (Throwable ignored) {
             // Algunos fabricantes no exponen esa acción; se cae a Ajustes.

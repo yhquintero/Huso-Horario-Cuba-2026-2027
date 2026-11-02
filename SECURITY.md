@@ -23,7 +23,7 @@ El APK se instala fuera de Play Store. Descárgalo solo desde la release de este
 
 - La app **no declara INTERNET**, bloquea el tráfico en claro y no incluye bibliotecas de terceros ni rastreadores.
 - No solicita permisos peligrosos: ni ubicación, ni contactos, ni almacenamiento, ni teléfono.
-- `WRITE_SECURE_SETTINGS` y `SET_TIME_ZONE` son permisos de nivel desarrollo: una app normal no puede obtenerlos por sí sola. Solo se activan si el usuario los concede manualmente por ADB (`pm grant`), y se pueden revocar con `pm revoke`. Conceder `WRITE_SECURE_SETTINGS` permite a esa app cambiar la zona horaria del equipo; concédelo solo si entiendes esa consecuencia.
+- No declara permisos de sistema: ni `SET_TIME_ZONE` ni `WRITE_SECURE_SETTINGS`. En AOSP, `SET_TIME_ZONE` es `signature|privileged|role` (solo aplicaciones del sistema o del fabricante) y `WRITE_SECURE_SETTINGS` no sirve para cambiar la zona, porque `SettingsProvider` no aplica `time_zone`. La app se limita a leer el estado y a abrir los ajustes del sistema; no pide credenciales ni ejecuta comandos.
 - La identidad de firma es **pública y versionada** en `android/keystore/`. No protege secretos: su función es que Android acepte actualizaciones sobre la misma instalación. La confianza debe basarse en el código fuente y en el SHA-256 publicado, no en la firma.
 - La app no modifica la base de datos de zonas horarias del sistema (`tzdata`), no cambia la hora del reloj y no intenta eludir restricciones del fabricante.
 

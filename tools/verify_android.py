@@ -48,13 +48,16 @@ TARGET_SDK = 34
 COMPILE_SDK = 34
 
 REQUIRED_PERMISSIONS = {
-    "android.permission.WRITE_SECURE_SETTINGS",
-    "android.permission.SET_TIME_ZONE",
     "android.permission.RECEIVE_BOOT_COMPLETED",
     "android.permission.SCHEDULE_EXACT_ALARM",
     "android.permission.POST_NOTIFICATIONS",
 }
 FORBIDDEN_PERMISSIONS = {
+    # SET_TIME_ZONE es signature|privileged|role y WRITE_SECURE_SETTINGS no
+    # sirve para cambiar la zona: una app instalada no puede hacerlo. Si
+    # alguien vuelve a declararlos, el APK estaría prometiendo algo imposible.
+    "android.permission.SET_TIME_ZONE",
+    "android.permission.WRITE_SECURE_SETTINGS",
     "android.permission.INTERNET",
     "android.permission.USE_EXACT_ALARM",
     "android.permission.ACCESS_NETWORK_STATE",
@@ -216,6 +219,12 @@ def check_resources() -> None:
 # Regla horaria
 # --------------------------------------------------------------------------
 
+def strip_java_comments(source: str) -> str:
+    """Quita comentarios para que la documentación no active las comprobaciones."""
+    without_block = re.sub(r"/\*.*?\*/", "", source, flags=re.DOTALL)
+    return re.sub(r"//[^\n]*", "", without_block)
+
+
 def check_cuba_rules() -> None:
     raw_active, active_text = verify_registry.read_utf8_reg(
         verify_registry.ACTIVE_PROFILE)
@@ -257,21 +266,30 @@ def check_cuba_rules() -> None:
     for snippet, message in expected_snippets.items():
         require(snippet in source, "CubaRules.java: %s" % message)
 
-    zone_controller = read(JAVA_DIR / "ZoneController.java")
+    zone_controller = strip_java_comments(read(JAVA_DIR / "ZoneController.java"))
     require("America/Havana" in zone_controller,
             "ZoneController.java: falta la zona de referencia America/Havana")
-    require('TIME_ZONE_SETTING = "time_zone"' in zone_controller,
-            "ZoneController.java: la clave de zona horaria debe ser el ajuste real time_zone")
-    require("Settings.Global.TIME_ZONE" not in zone_controller,
-            "ZoneController.java: Settings.Global.TIME_ZONE no es API pública de Android")
-    require(raw_active, "el perfil activo no debe estar vacío")
+    for token in ("putString", "setTimeZone(", "WRITE_SECURE_SETTINGS", "AlarmManager"):
+        require(token not in zone_controller,
+                "ZoneController.java: una app instalada no puede escribir la zona (%s)" % token)
+    require("TimeZone.getDefault()" in zone_controller,
+            "ZoneController.java: el estado real debe leerse con TimeZone.getDefault()")
 
-    main_source = read(MAIN_ACTIVITY)
-    require("pm grant %s android.permission.WRITE_SECURE_SETTINGS" % APPLICATION_ID
-            in main_source,
-            "MainActivity.java: el comando ADB debe usar el applicationId real")
-    require("adb shell pm grant" in main_source,
-            "MainActivity.java: falta la instrucción ADB para conceder el permiso")
+    guide = read(JAVA_DIR / "OffsetGuide.java")
+    for snippet in ("Administración general", "Zona horaria automática",
+                    "Santo Domingo", "Bogotá", "GMT"):
+        require(snippet in guide,
+                "OffsetGuide.java: faltan los pasos para ajustar la zona (%r)" % snippet)
+
+    main_source = strip_java_comments(read(MAIN_ACTIVITY))
+    for token in ("applyZone", "WRITE_SECURE_SETTINGS", "adb shell pm grant"):
+        require(token not in main_source,
+                "MainActivity.java: no debe prometer un cambio automático (%s)" % token)
+    require("OffsetGuide" in main_source,
+            "MainActivity.java: debe mostrar la guía de ajuste manual")
+    require("openDateTimeSettings" in main_source,
+            "MainActivity.java: falta el acceso a los ajustes de fecha y hora")
+    require(raw_active, "el perfil activo no debe estar vacío")
 
 
 def check_no_network_apis() -> None:
@@ -334,10 +352,11 @@ def main(argv: list[str]) -> int:
             print(error.code, file=sys.stderr)
         return 1
     print("PASS  Gradle: applicationId, SDK 21/34 y sin dependencias externas")
-    print("PASS  Manifiesto: sin INTERNET, sin tráfico en claro, componentes y permisos previstos")
+    print("PASS  Manifiesto: sin INTERNET, sin permisos de sistema ni tráfico en claro")
     print("PASS  Recursos usados desde Java y el manifiesto")
     print("PASS  CubaRules.java coincide con los TZI 2026/2027 (cambio 2027-11-07 05:00 UTC)")
     print("PASS  Guía embebida sincronizada (%d archivos en assets/site)" % len(generated))
+    print("PASS  Ajuste guiado: la app no promete cambiar la zona (límite de Android)")
     print("PASS  Firma: almacén de claves y huella publicada")
     print("NOTE  Comprobación estática: no compila ni instala el APK.")
     return 0

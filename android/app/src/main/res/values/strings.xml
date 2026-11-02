@@ -4,7 +4,8 @@
     <string name="channel_changes_name">Cambios de hora de Cuba</string>
     <string name="channel_changes_desc">Avisos sobre las transiciones previstas en la regla horaria.</string>
     <string name="notification_channel_changes">Cambios de hora</string>
-    <string name="notif_title">Cambio previsto de hora</string>
-    <string name="notif_body_change">Desde ahora la regla del proyecto indica UTC-05:00. Abre Cuba Hora 2027 para revisar el ajuste del teléfono.</string>
-    <string name="notif_body_soon">En menos de 24 horas está previsto un cambio de hora según la regla del proyecto.</string>
+    <string name="notif_title">Cambio de hora previsto</string>
+    <string name="notif_body_week">En una semana cambia el huso horario según la regla del proyecto. Revisa la zona horaria del teléfono en Ajustes.</string>
+    <string name="notif_body_soon">Mañana cambia el huso horario según la regla del proyecto. Abre Cuba Hora 2027 para ver la zona que debes elegir.</string>
+    <string name="notif_body_change">Hoy cambia el huso horario según la regla del proyecto. Abre la app y ajusta la zona en los ajustes del teléfono.</string>
 </resources>
