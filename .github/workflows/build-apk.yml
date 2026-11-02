@@ -141,17 +141,36 @@ jobs:
               text = line.replace("%", "%25").replace("\r", "%0D")
               print("::error::" + text[:900])
 
+          # El bloque «What went wrong» es donde Gradle explica la causa real.
+          for name in ("/tmp/build.log", "/tmp/verify.log"):
+              path = pathlib.Path(name)
+              if not path.is_file():
+                  continue
+              lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+              for index, line in enumerate(lines):
+                  if "What went wrong" in line:
+                      emit("--- %s: bloque de error ---" % path.name)
+                      for detail in lines[index:index + 18]:
+                          emit(detail)
+                      break
+          PY_ANNOTATE
+          python3 - <<'PY_ANNOTATE2'
+          import pathlib
+
           for name in ("/tmp/verify.log", "/tmp/build.log"):
               log = pathlib.Path(name)
               if not log.is_file():
                   continue
               lines = log.read_text(encoding="utf-8", errors="replace").splitlines()
+              patterns = (".java:", "ERROR", "error", "FAIL", "Traceback",
+                          "Caused by", "What went wrong", "Execution failed",
+                          "> Task", "Could not", "Cannot", "firma", "Signer",
+                          "Verified using")
               hits = [line for line in lines
-                      if ".java:" in line or "ERROR" in line or "error" in line
-                      or "FAIL" in line or "Traceback" in line
-                      or "firma" in line or line.startswith("Signer")
-                      or "Verified using" in line]
-              selected = hits[:30] if hits else lines[-30:]
+                      if any(pattern in line for pattern in patterns)]
+              # La causa suele estar tras «What went wrong»: se muestran las
+              # últimas coincidencias, no las primeras del log.
+              selected = hits[-40:] if hits else lines[-40:]
               if selected:
                   print("::error::---- %s ----" % name)
               for line in selected:

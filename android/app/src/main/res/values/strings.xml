@@ -8,5 +8,9 @@
     <string name="notif_title">Cambio de hora previsto</string>
     <string name="notif_body_week">En una semana cambia el huso horario según la regla del proyecto. Revisa la zona horaria del teléfono en Ajustes.</string>
     <string name="notif_body_soon">Mañana cambia el huso horario según la regla del proyecto. Abre Cuba Hora 2027 para ver la zona que debes elegir.</string>
+    <string name="notif_title_applied">Zona horaria actualizada</string>
+    <string name="notif_body_applied">La app aplicó el cambio de la regla: %1$s. No tienes que hacer nada.</string>
+    <string name="notif_title_failed">Cambio automático pendiente</string>
+    <string name="notif_body_failed">No se pudo aplicar el cambio (%1$s). Abre la app para ajustarlo en un toque.</string>
     <string name="notif_body_change">Hoy cambia el huso horario según la regla del proyecto. Abre la app y ajusta la zona en los ajustes del teléfono.</string>
 </resources>

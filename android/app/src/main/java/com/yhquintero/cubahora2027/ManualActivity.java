@@ -25,12 +25,6 @@ import android.widget.Toast;
  */
 public class ManualActivity extends Activity {
 
-    /** Santo Domingo mantiene UTC-04:00 todo el año: no se mueve sola. */
-    static final String ZONE_SUMMER = "America/Santo_Domingo";
-
-    /** Bogotá mantiene UTC-05:00 todo el año. */
-    static final String ZONE_STANDARD = "America/Bogota";
-
     static final String CMD_AUTO_OFF = "adb shell settings put global auto_time_zone 0";
     static final String CMD_VERIFY = "adb shell getprop persist.sys.timezone";
     static final String CMD_RESTORE = "adb shell cmd alarm set-timezone America/Havana";
@@ -60,11 +54,15 @@ public class ManualActivity extends Activity {
         column.addView(Ui.text(this, "Manual de aplicación", 22f, Ui.INK, true));
         column.addView(Ui.spacer(this, 4f));
         column.addView(Ui.text(this,
-                "Dos formas de dejar el teléfono en el desfase que pide la regla. "
-                        + "Elige una; la app no puede cambiarlo sola porque Android reserva "
+                "Cuatro formas de dejar el teléfono en el desfase que pide la regla. "
+                        + "Elige una. La primera es automática; las demás, manuales. La app no "
+                        + "puede cambiarlo sola sin un canal autorizado porque Android reserva "
                         + "ese ajuste al sistema.", 13.5f, Ui.MUTED, false));
 
         column.addView(Ui.spacer(this, 16f));
+        column.addView(automaticCard());
+
+        column.addView(Ui.spacer(this, 14f));
         column.addView(optionOne());
 
         column.addView(Ui.spacer(this, 14f));
@@ -88,6 +86,36 @@ public class ManualActivity extends Activity {
         column.addView(Ui.text(this, "Versión " + versionLabel(), 11.5f, Ui.MUTED, false));
 
         return scroll;
+    }
+
+    /** Vía automática: Shizuku aplica la transición sin intervención. */
+    private LinearLayout automaticCard() {
+        LinearLayout card = Ui.card(this);
+        boolean ready = AutoSwitch.canApplyNow(this);
+        card.addView(Ui.pill(this, ready ? "AUTOMÁTICO · LISTO" : "AUTOMÁTICO · REQUIERE SHIZUKU",
+                ready ? Ui.MINT_PALE : Ui.BLUE_PALE,
+                ready ? Ui.MINT_DEEP : Ui.BLUE_DARK));
+        card.addView(Ui.spacer(this, 10f));
+        card.addView(Ui.text(this, "Cambio sin tocar el teléfono", 18f, Ui.INK, true));
+        card.addView(Ui.spacer(this, 6f));
+        card.addView(body("Con Shizuku, la app ejecuta la transición el 7 de noviembre de "
+                + "2027 a la 01:00 y verifica el resultado. Shizuku es un servicio gratuito "
+                + "y de código abierto que presta el permiso del shell; no requiere root."));
+
+        card.addView(Ui.spacer(this, 12f));
+        card.addView(step("1", "Instala Shizuku desde Play Store o su repositorio de GitHub."));
+        card.addView(step("2", "Activa Opciones de desarrollador y «Depuración inalámbrica»."));
+        card.addView(step("3", "En Shizuku, elige «Emparejar» con depuración inalámbrica y "
+                + "pulsa «Iniciar». Si quieres que siga activo tras reiniciar, activa "
+                + "«Iniciar al arrancar» dentro de Shizuku."));
+        card.addView(step("4", "Vuelve a Cuba Hora 2027 y pulsa «Activar el cambio "
+                + "automático»: la app pide la autorización y prueba el cambio al momento."));
+
+        card.addView(Ui.spacer(this, 10f));
+        card.addView(command("adb shell cmd alarm set-timezone " + OffsetGuide.zoneIdFor(
+                CubaRules.offsetMinutes(System.currentTimeMillis())),
+                "Equivalente manual: es exactamente lo que ejecuta la app con Shizuku."));
+        return card;
     }
 
     private LinearLayout optionOne() {
@@ -141,7 +169,7 @@ public class ManualActivity extends Activity {
                 + "(acepta el aviso «¿Permitir depuración USB?»):"));
 
         int required = CubaRules.offsetMinutes(System.currentTimeMillis());
-        String zone = required == CubaRules.OFFSET_STANDARD ? ZONE_STANDARD : ZONE_SUMMER;
+        String zone = OffsetGuide.zoneIdFor(required);
         String label = CubaRules.labelForMinutes(required);
 
         card.addView(Ui.spacer(this, 10f));
@@ -150,7 +178,8 @@ public class ManualActivity extends Activity {
                 + "deshaga el cambio."));
         card.addView(command("adb shell cmd alarm set-timezone " + zone,
                 "Fija " + label + " ahora mismo. Para el otro tramo usa "
-                        + (zone.equals(ZONE_SUMMER) ? ZONE_STANDARD : ZONE_SUMMER) + "."));
+                        + (zone.equals(OffsetGuide.ZONE_SUMMER)
+                        ? OffsetGuide.ZONE_STANDARD : OffsetGuide.ZONE_SUMMER) + "."));
 
         card.addView(Ui.spacer(this, 10f));
         card.addView(body("El cambio es inmediato y sobrevive al reinicio. Repítelo solo "

@@ -2,6 +2,16 @@
 
 Los cambios de este proyecto se anotan aquí para facilitar la revisión de los perfiles y de la guía.
 
+## 2026-11-01 · Android 1.3.0: cambio automático en la transición
+
+- Se añade el cambio automático del huso horario: el 7 de noviembre de 2027 a la 01:00 la app aplica UTC−05:00 sin intervención y verifica el resultado con `getprop persist.sys.timezone`.
+- Nuevo canal privilegiado con Shizuku (`dev.rikka.shizuku:api` y `:provider` 12.1.0): la app ejecuta como shell `settings put global auto_time_zone 0` y `cmd alarm set-timezone`. Es la única vía sin root, porque Android reserva `SET_TIME_ZONE` a las aplicaciones del sistema.
+- La pantalla principal estrena botón único «Activar el cambio automático», que configura el canal, pide autorización, arma las alarmas y aplica el desfase vigente; se añade «Probar ahora» para validarlo sin esperar a 2027.
+- `TransitionReceiver` aplica la transición en segundo plano (`goAsync`) y distingue APPLIED / UNVERIFIED / NO_CHANNEL / FAILED; nunca informa de un éxito no verificado. `BootReceiver` rearma el cambio al reiniciar.
+- `minSdk` pasa a 23 (mínimo de Shizuku) y `gradle.properties` activa AndroidX por la dependencia transitiva `androidx.annotation`. La app sigue sin pedir INTERNET.
+- `verify_android.py` valida la lista exacta de dependencias, el proveedor de Shizuku, los comandos del canal y la verificación posterior; `verify-apk.sh` comprueba en el APK el permiso de cliente de Shizuku y la ausencia de permisos de sistema.
+- CI: el reporte de fallos muestra el bloque «What went wrong» de Gradle, que faltaba para diagnosticar fallos del plugin.
+
 ## 2026-11-01 · Android 1.2.0: tarjeta de la regla y manual de aplicación
 
 - Se corrige el hueco de la tarjeta **REGLA DEL PROYECTO**: el separador se insertaba bajo el título y los valores largos se apretaban contra la etiqueta. Ahora el título lleva el tramo vigente a la derecha, cada valor usa su propia línea (`addBlock`) y el texto de la regla va en una caja.

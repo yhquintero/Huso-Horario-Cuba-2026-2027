@@ -358,16 +358,18 @@
             <p class="section-kicker"><span>04</span> · ANDROID</p>
             <h2 id="android-title">El mismo criterio,<br /><em>también en el móvil.</em></h2>
             <p>
-              <strong>Cuba Hora 2027</strong> es la versión Android de este proyecto. Compara la zona
-              del teléfono con la regla publicada aquí, muestra la hora de Cuba y te dice la zona
-              exacta que debes elegir en los ajustes del sistema. Android no permite que una app
-              instalada cambie la zona horaria: la app lo explica en vez de prometerlo.
+              <strong>Cuba Hora 2027</strong> es la versión Android de este proyecto. Con
+              <a href="https://github.com/RikkaApps/Shizuku">Shizuku</a> autorizado una vez (sin
+              root), un solo botón activa el cambio automático: el 7 de noviembre de 2027 a la
+              01:00 el teléfono pasa a UTC−05:00 solo y la app verifica el resultado. Sin ese
+              canal compara la zona del teléfono con la regla y te dice la zona exacta para
+              Ajustes.
             </p>
             <div class="install-callout">
               <span class="callout-shield" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none"><path d="M12 3 19 6v5.3c0 4.2-2.9 7.7-7 9.7-4.1-2-7-5.5-7-9.7V6l7-3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </span>
-              <span><strong>Un solo archivo</strong><small>APK firmado, sin INTERNET, sin permisos de sistema y sin rastreadores. Android 5.0 o superior, compatible con Galaxy S22.</small></span>
+              <span><strong>Un solo archivo</strong><small>APK firmado, sin INTERNET, sin permisos de sistema y sin rastreadores. Android 6.0 o superior, compatible con Galaxy S22.</small></span>
             </div>
             <p class="android-download">
               <a class="button button-primary" href="https://github.com/yhquintero/Huso-Horario-Cuba-2026-2027/releases/latest">
@@ -397,18 +399,22 @@
             </li>
             <li class="install-step">
               <span class="step-number">04</span>
-              <div><h3>Por qué no lo hace la app</h3><p>Cambiar la zona exige <code>SET_TIME_ZONE</code>, un permiso de nivel <code>signature|privileged|role</code> reservado a aplicaciones del sistema o del fabricante. Escribir <code>time_zone</code> en los ajustes globales no aplica el cambio: por eso la app guía en lugar de prometer un cambio automático.</p></div>
+              <div><h3>Cambio automático</h3><p>Android reserva <code>SET_TIME_ZONE</code> a las aplicaciones del sistema, así que la app usa <strong>Shizuku</strong> (gratuito, sin root): se instala, se empareja la depuración inalámbrica y se pulsa <em>Iniciar</em>. Después, <strong>Activar el cambio automático</strong> hace todo en un toque: ejecuta <code>cmd alarm set-timezone</code> como shell, comprueba con <code>getprop persist.sys.timezone</code> y avisa del resultado real.</p></div>
             </li>
             <li class="install-step">
               <span class="step-number">05</span>
-              <div><h3>Opción con PC, sin root</h3><p>El shell de Android sí tiene ese permiso. Con el cable y la depuración USB: <code>adb shell cmd alarm set-timezone America/Santo_Domingo</code> y <code>adb shell settings put global auto_time_zone 0</code>. Para volver: <code>adb shell cmd alarm set-timezone America/Havana</code>. La app incluye estos comandos en su manual y los copia con un toque. Capturas en <a href="https://github.com/yhquintero/Huso-Horario-Cuba-2026-2027/tree/main/docs/capturas"><code>docs/capturas/</code></a>.</p></div>
+              <div><h3>Por qué la app no puede sola</h3><p>Cambiar la zona exige <code>SET_TIME_ZONE</code>, un permiso de nivel <code>signature|privileged|role</code> reservado a aplicaciones del sistema o del fabricante. Escribir <code>time_zone</code> en los ajustes globales no aplica el cambio: por eso la vía automática pasa por Shizuku y, sin ella, la app guía en lugar de prometerlo.</p></div>
             </li>
             <li class="install-step">
               <span class="step-number">06</span>
-              <div><h3>Recordatorios</h3><p>La app avisa 7 días antes, 24 horas antes y en el momento de la transición, y se reprograma al reiniciar. Solo envía notificaciones locales: no usa servidores ni conexión a Internet.</p></div>
+              <div><h3>Opción con PC, sin root</h3><p>El shell de Android sí tiene ese permiso. Con el cable y la depuración USB: <code>adb shell cmd alarm set-timezone America/Santo_Domingo</code> y <code>adb shell settings put global auto_time_zone 0</code>. Para volver: <code>adb shell cmd alarm set-timezone America/Havana</code>. La app incluye estos comandos en su manual y los copia con un toque. Capturas en <a href="https://github.com/yhquintero/Huso-Horario-Cuba-2026-2027/tree/main/docs/capturas"><code>docs/capturas/</code></a>.</p></div>
             </li>
             <li class="install-step">
               <span class="step-number">07</span>
+              <div><h3>Recordatorios</h3><p>La app avisa 7 días antes, 24 horas antes y en el momento de la transición, y se reprograma al reiniciar. Solo envía notificaciones locales: no usa servidores ni conexión a Internet.</p></div>
+            </li>
+            <li class="install-step">
+              <span class="step-number">08</span>
               <div><h3>Comprueba el archivo</h3><p>Compara el SHA-256 del APK con el publicado en <code>dist/SHA256SUMS</code> y verifica la firma con <code>apksigner verify --print-certs</code>. La huella del certificado del proyecto está publicada en <code>android/keystore/README.md</code>.</p></div>
             </li>
           </ol>

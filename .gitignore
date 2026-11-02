@@ -8,3 +8,7 @@ android/local.properties
 android/.idea/
 *.iml
 .kotlin/
+
+# Caché de Python de las herramientas locales
+__pycache__/
+*.pyc

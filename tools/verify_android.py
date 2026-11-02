@@ -45,7 +45,22 @@ EXPECTED_SIGNER = ANDROID / "expected-signer.txt"
 ANDROID_NS = "{http://schemas.android.com/apk/res/android}"
 
 APPLICATION_ID = "com.yhquintero.cubahora2027"
-MIN_SDK = 21
+
+# Únicas dependencias externas: la API de Shizuku y su proveedor, con versión
+# exacta. Cualquier otra debe discutirse en revisión: la app no puede empezar a
+# arrastrar bibliotecas sin cambiar esta lista y su documentación.
+ALLOWED_DEPENDENCIES = {
+    "dev.rikka.shizuku:api:12.1.0",
+    "dev.rikka.shizuku:provider:12.1.0",
+}
+SHIZUKU_PROVIDER = "rikka.shizuku.ShizukuProvider"
+
+# Permiso que la biblioteca de Shizuku fusiona en el manifiesto del APK para
+# poder hablar con la app Shizuku. No lo concede el sistema ni da acceso a nada
+# por sí solo: la autorización real la da el usuario dentro de Shizuku. Se
+# comprueba sobre el APK compilado en android/scripts/verify-apk.sh.
+SHIZUKU_CALLER_PERMISSION = "moe.shizuku.manager.permission.API_V23"
+MIN_SDK = 23
 TARGET_SDK = 34
 COMPILE_SDK = 34
 
@@ -108,7 +123,7 @@ def check_gradle() -> None:
     require(re.search(r"compileSdk\s+%d" % COMPILE_SDK, source) is not None,
             "build.gradle: compileSdk debe ser %d" % COMPILE_SDK)
     require(re.search(r"minSdk\s+%d" % MIN_SDK, source) is not None,
-            "build.gradle: minSdk debe ser %d (Android 5.0)" % MIN_SDK)
+            "build.gradle: minSdk debe ser %d (Android 6.0, mínimo de Shizuku)" % MIN_SDK)
     require(re.search(r"targetSdk\s+%d" % TARGET_SDK, source) is not None,
             "build.gradle: targetSdk debe ser %d" % TARGET_SDK)
 
@@ -120,8 +135,13 @@ def check_gradle() -> None:
     require(major >= 8, "android/build.gradle: se esperaba AGP 8 o superior")
 
     require("dependencies {" in source, "build.gradle: falta el bloque dependencies")
-    require("implementation" not in source,
-            "build.gradle: la app no debe declarar dependencias externas")
+    declared = set(re.findall(r'implementation\s+"([^"]+)"', source))
+    require(declared == ALLOWED_DEPENDENCIES,
+            "build.gradle: dependencias no permitidas %s (solo %s)"
+            % (sorted(declared - ALLOWED_DEPENDENCIES), sorted(ALLOWED_DEPENDENCIES)))
+    for artifact in declared:
+        require(re.search(r":\d+\.\d+\.\d+$", artifact) is not None,
+                "build.gradle: la dependencia %s debe fijar una versión exacta" % artifact)
 
 
 # --------------------------------------------------------------------------
@@ -186,6 +206,20 @@ def check_manifest() -> None:
     require("android.permission.INTERNET" not in text,
             "manifiesto: no debe pedirse INTERNET")
 
+    providers = {element.get(ANDROID_NS + "name"): element
+                 for element in application.findall("provider")}
+    provider = providers.get(SHIZUKU_PROVIDER)
+    require(provider is not None,
+            "manifiesto: falta el proveedor de Shizuku (necesario para el canal privilegiado)")
+    require(provider.get(ANDROID_NS + "authorities") == "${applicationId}.shizuku",
+            "manifiesto: authorities del proveedor de Shizuku inesperadas")
+    require(provider.get(ANDROID_NS + "exported") == "true",
+            "manifiesto: el proveedor de Shizuku debe ser exported")
+    require(provider.get(ANDROID_NS + "permission")
+            == "android.permission.INTERACT_ACROSS_USERS_FULL",
+            "manifiesto: el proveedor de Shizuku debe protegerse con "
+            "INTERACT_ACROSS_USERS_FULL")
+
 
 def check_resources() -> None:
     manifest_text = read(MANIFEST)
@@ -246,6 +280,10 @@ JAVA_LANG_AND_ANNOTATIONS = {
     "IndexOutOfBoundsException", "ArithmeticException", "InterruptedException",
     "CloneNotSupportedException", "ClassNotFoundException", "Runtime",
     "Process", "Package", "StackTraceElement", "ThreadLocal", "AutoCloseable",
+    "IllegalThreadStateException", "IllegalMonitorStateException",
+    "ArrayIndexOutOfBoundsException", "ClassCastException", "NumberFormatException",
+    "UnsupportedClassVersionError", "NoSuchFieldException", "NoSuchMethodException",
+    "InstantiationException", "IllegalAccessException", "SecurityManager",
 }
 
 
@@ -257,11 +295,17 @@ def check_java_symbols() -> None:
     comprobación es deliberadamente simple y solo mira identificadores con
     inicial mayúscula y al menos una minúscula, sin comentarios ni cadenas.
     """
-    local = {path.stem for path in JAVA_DIR.glob("*.java")}
-    known = local | JAVA_LANG_AND_ANNOTATIONS | {"R"}
-    for path in sorted(JAVA_DIR.glob("*.java")):
-        source = path.read_text(encoding="utf-8")
-        source = strip_java_comments(source)
+    sources = {path: strip_java_comments(path.read_text(encoding="utf-8"))
+               for path in JAVA_DIR.glob("*.java")}
+    local = {path.stem for path in sources}
+    # Tipos declarados en el paquete, incluidos los anidados (enum Result, ...).
+    declared = set()
+    for source in sources.values():
+        declared |= set(re.findall(
+            r"\b(?:class|interface|enum)\s+([A-Z][A-Za-z0-9_]*)", source))
+    known = local | declared | JAVA_LANG_AND_ANNOTATIONS | {"R"}
+    for path in sorted(sources):
+        source = sources[path]
         imports = set(re.findall(r"^import\s+(?:static\s+)?[\w.]*?([A-Z][\w]*)\s*;",
                                  source, re.MULTILINE))
         available = known | imports
@@ -327,6 +371,38 @@ def check_cuba_rules() -> None:
         require(snippet in guide,
                 "OffsetGuide.java: faltan los pasos para ajustar la zona (%r)" % snippet)
 
+    # Los comandos son literales de texto: se buscan en el código sin comentarios
+    # pero con literales (strip_java_comments los elimina).
+    auto_switch_raw = re.sub(r"/\*.*?\*/", "", read(JAVA_DIR / "AutoSwitch.java"),
+                             flags=re.DOTALL)
+    shizuku_raw = re.sub(r"/\*.*?\*/", "", read(JAVA_DIR / "ShizukuChannel.java"),
+                         flags=re.DOTALL)
+    auto_switch = strip_java_comments(auto_switch_raw)
+    shizuku = strip_java_comments(shizuku_raw)
+    combined = shizuku_raw + "\n" + auto_switch_raw
+    expected_commands = {
+        "desactivar la zona automática": '"auto_time_zone", "0"',
+        "cambiar la zona con el shell": '"cmd", "alarm", "set-timezone"',
+        "leer la zona aplicada": '"getprop", "persist.sys.timezone"',
+    }
+    for label, token in expected_commands.items():
+        require(token in combined,
+                "cambio automático: falta el comando para %s (%s)" % (label, token))
+    for token in ("Shizuku.pingBinder", "Shizuku.checkSelfPermission",
+                  "Shizuku.requestPermission", "Shizuku.newProcess"):
+        require(token in shizuku,
+                "ShizukuChannel.java: falta %s (canal privilegiado)" % token)
+    require("Result.NO_CHANNEL" in auto_switch and "Result.UNVERIFIED" in auto_switch,
+            "AutoSwitch.java: debe distinguir canal ausente y cambio sin verificar")
+    require("readSystemZone" in auto_switch,
+            "AutoSwitch.java: debe verificar la zona aplicada leyendo el sistema")
+
+    receiver = strip_java_comments(read(JAVA_DIR / "TransitionReceiver.java"))
+    require("AutoSwitch.applyNow" in receiver,
+            "TransitionReceiver.java: la transición debe aplicar el cambio automático")
+    require("goAsync" in receiver,
+            "TransitionReceiver.java: el trabajo debe hacerse fuera del hilo principal")
+
     main_source = strip_java_comments(read(MAIN_ACTIVITY))
     for token in ("applyZone", "WRITE_SECURE_SETTINGS", "adb shell pm grant"):
         require(token not in main_source,
@@ -335,18 +411,26 @@ def check_cuba_rules() -> None:
             "MainActivity.java: debe mostrar la guía de ajuste manual")
     require("ManualActivity" in main_source,
             "MainActivity.java: falta el acceso al manual de aplicación")
+    for token in ("onPrimaryAction", "Activar el cambio automático",
+                  "OnRequestPermissionResultListener", "runAutomation"):
+        require(token in read(MAIN_ACTIVITY),
+                "MainActivity.java: falta el flujo de un solo botón (%s)" % token)
 
     manual_raw = read(JAVA_DIR / "ManualActivity.java")
     manual = strip_java_comments(manual_raw)
+    guide_raw = read(JAVA_DIR / "OffsetGuide.java")
     for snippet in ("adb shell cmd alarm set-timezone",
                     "settings put global auto_time_zone 0",
                     "getprop persist.sys.timezone",
-                    "America/Santo_Domingo",
-                    "America/Bogota",
                     "America/Havana",
                     "Administración general"):
         require(snippet in manual_raw,
                 "ManualActivity.java: falta el paso %r del manual" % snippet)
+    # Las zonas fijas viven en OffsetGuide y las usan la app y el manual.
+    for snippet in ('ZONE_SUMMER = "America/Santo_Domingo"',
+                    'ZONE_STANDARD = "America/Bogota"'):
+        require(snippet in guide_raw,
+                "OffsetGuide.java: falta la zona fija %r" % snippet)
     for token in ("WRITE_SECURE_SETTINGS", "applyZone"):
         require(token not in manual,
                 "ManualActivity.java: no debe prometer un cambio desde la app (%s)" % token)
@@ -415,13 +499,14 @@ def main(argv: list[str]) -> int:
         if isinstance(error.code, str):
             print(error.code, file=sys.stderr)
         return 1
-    print("PASS  Gradle: applicationId, SDK 21/34 y sin dependencias externas")
-    print("PASS  Manifiesto: sin INTERNET, sin permisos de sistema ni tráfico en claro")
+    print("PASS  Gradle: applicationId, SDK 23/34 y solo la dependencia fijada de Shizuku")
+    print("PASS  Manifiesto: sin INTERNET, sin permisos de sistema, proveedor de Shizuku protegido")
     print("PASS  Recursos usados desde Java y el manifiesto")
     print("PASS  Imports Java completos (sin tipos sin resolver)")
     print("PASS  CubaRules.java coincide con los TZI 2026/2027 (cambio 2027-11-07 05:00 UTC)")
     print("PASS  Guía embebida sincronizada (%d archivos en assets/site)" % len(generated))
-    print("PASS  Ajuste guiado: la app no promete cambiar la zona (límite de Android)")
+    print("PASS  Cambio automático: canal Shizuku, comandos y verificación del sistema")
+    print("PASS  Ajuste guiado: sin canal privilegiado la app no promete el cambio")
     print("PASS  Firma: almacén de claves y huella publicada")
     print("NOTE  Comprobación estática: no compila ni instala el APK.")
     return 0

@@ -29,6 +29,8 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
 
+import rikka.shizuku.Shizuku;
+
 /**
  * Pantalla principal: muestra el estado real del teléfono, la regla del
  * proyecto y los pasos para ajustar la zona desde los ajustes del sistema.
@@ -42,12 +44,14 @@ public class MainActivity extends Activity {
     private TextView cubaTimeValue;
     private TextView requiredValue;
     private TextView autoValue;
+    private TextView automationValue;
     private TextView nextValue;
     private TextView rulePill;
     private TextView coverageValue;
     private TextView hintValue;
     private TextView remindersHint;
     private Button primaryButton;
+    private Button testButton;
     private Button exactAlarmButton;
     private CheckBox remindersBox;
     private boolean bindingReminders;
@@ -58,14 +62,35 @@ public class MainActivity extends Activity {
         Notifications.ensureChannel(this);
         setContentView(buildUi());
         refresh();
-        ReminderScheduler.scheduleNext(this);
+        if (AutoSwitch.isEnabled(this)) {
+            AutoSwitch.arm(this);
+        } else {
+            ReminderScheduler.scheduleNext(this);
+        }
         requestNotificationPermissionIfNeeded();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        try {
+            Shizuku.addRequestPermissionResultListener(permissionListener);
+            Shizuku.addBinderReceivedListenerSticky(binderListener);
+        } catch (Throwable ignored) {
+            // Shizuku no instalado: la interfaz sigue en modo manual.
+        }
         refresh();
+    }
+
+    @Override
+    protected void onPause() {
+        try {
+            Shizuku.removeRequestPermissionResultListener(permissionListener);
+            Shizuku.removeBinderReceivedListener(binderListener);
+        } catch (Throwable ignored) {
+            // Nada que retirar.
+        }
+        super.onPause();
     }
 
     // ------------------------------------------------------------------
@@ -129,6 +154,7 @@ public class MainActivity extends Activity {
         deviceTimeValue = addRow(status, "Hora del teléfono", "…", false);
         cubaTimeValue = addRow(status, "Hora de Cuba según la regla", "…", false);
         autoValue = addRow(status, "Zona horaria automática", "…", false);
+        automationValue = addRow(status, "Cambio automático", "…", true);
 
         hintValue = Ui.text(this, "", 12.5f, Ui.MUTED, false);
         hintValue.setPadding(0, dp(10), 0, 0);
@@ -149,14 +175,34 @@ public class MainActivity extends Activity {
         actions.addView(why);
         actions.addView(Ui.spacer(this, 12f));
 
-        primaryButton = Ui.button(this, "Abrir ajustes de fecha y hora", true);
+        primaryButton = Ui.button(this, "Activar el cambio automático", true);
         primaryButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                onPrimaryAction();
+            }
+        });
+        actions.addView(primaryButton, fullWidth());
+
+        actions.addView(Ui.spacer(this, 10f));
+        testButton = Ui.button(this, "Probar ahora sin esperar a 2027", false);
+        testButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                runAutomation(true);
+            }
+        });
+        actions.addView(testButton, fullWidth());
+
+        actions.addView(Ui.spacer(this, 10f));
+        Button openSettings = Ui.button(this, "Abrir ajustes de fecha y hora", false);
+        openSettings.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 ZoneController.openDateTimeSettings(MainActivity.this);
             }
         });
-        actions.addView(primaryButton, fullWidth());
+        actions.addView(openSettings, fullWidth());
 
         actions.addView(Ui.spacer(this, 10f));
         Button steps = Ui.button(this, "Ver los pasos y la zona a elegir", false);
@@ -335,9 +381,26 @@ public class MainActivity extends Activity {
             setStatus("Ajuste pendiente", Ui.AMBER_PALE, Ui.AMBER_DEEP);
         }
 
-        primaryButton.setText(matches
-                ? "Abrir ajustes (ya coincide)"
-                : "Abrir ajustes · elegir " + CubaRules.labelForMinutes(required));
+        boolean autoReady = AutoSwitch.canApplyNow(this);
+        boolean autoOn = AutoSwitch.isEnabled(this);
+        automationValue.setText(autoOn
+                ? (autoReady ? "Activado · " + AutoSwitch.channelStatus(this)
+                : "Activado · " + AutoSwitch.channelStatus(this))
+                : (autoReady ? "Listo para activar" : "Desactivado · "
+                + AutoSwitch.channelStatus(this)));
+        automationValue.setTextColor(autoOn && autoReady ? Ui.MINT_DEEP
+                : (autoReady ? Ui.BLUE_DARK : Ui.AMBER_DEEP));
+
+        if (autoReady && autoOn) {
+            primaryButton.setText(matches
+                    ? "Reaplicar · el teléfono ya coincide"
+                    : "Aplicar ahora " + CubaRules.labelForMinutes(required));
+        } else if (autoReady) {
+            primaryButton.setText("Activar el cambio automático");
+        } else {
+            primaryButton.setText("Activar el cambio automático (configurar)");
+        }
+        testButton.setVisibility(autoReady ? View.VISIBLE : View.GONE);
 
         hintValue.setText(OffsetGuide.statusHint(auto, matches, zoneId));
 
@@ -420,6 +483,172 @@ public class MainActivity extends Activity {
     // ------------------------------------------------------------------
     // Acciones
     // ------------------------------------------------------------------
+
+    // ------------------------------------------------------------------
+    // Cambio automático
+    // ------------------------------------------------------------------
+
+    /** Un solo toque: configura el canal, activa y aplica el desfase vigente. */
+    private void onPrimaryAction() {
+        if (AutoSwitch.canApplyNow(this)) {
+            AutoSwitch.setEnabled(this, true);
+            AutoSwitch.arm(this);
+            runAutomation(false);
+            return;
+        }
+        if (ShizukuChannel.installed(this) && ShizukuChannel.running()
+                && !ShizukuChannel.authorized()) {
+            ShizukuChannel.requestPermission();
+            return;
+        }
+        showAutomationHelp();
+    }
+
+    private void onShizukuPermission(int requestCode, int grantResult) {
+        if (requestCode != ShizukuChannel.REQUEST_CODE) {
+            return;
+        }
+        if (grantResult == PackageManager.PERMISSION_GRANTED) {
+            AutoSwitch.setEnabled(this, true);
+            AutoSwitch.arm(this);
+            runAutomation(false);
+        } else {
+            toast("Sin autorización en Shizuku: se mantiene el aviso manual.");
+            refresh();
+        }
+    }
+
+    private final Shizuku.OnRequestPermissionResultListener permissionListener =
+            new Shizuku.OnRequestPermissionResultListener() {
+                @Override
+                public void onRequestPermissionResult(int requestCode, int grantResult) {
+                    onShizukuPermission(requestCode, grantResult);
+                }
+            };
+
+    private final Shizuku.OnBinderReceivedListener binderListener =
+            new Shizuku.OnBinderReceivedListener() {
+                @Override
+                public void onBinderReceived() {
+                    refresh();
+                }
+            };
+
+    /** Ejecuta la aplicación en segundo plano y muestra el resultado. */
+    private void runAutomation(boolean manualTest) {
+        final long now = System.currentTimeMillis();
+        final int required = CubaRules.offsetMinutes(now);
+        final String label = CubaRules.labelForMinutes(required);
+        requestNotificationPermissionIfNeeded();
+        if (needsExactAlarmPermission()) {
+            toast("Concede «Alarmas y recordatorios» para que el cambio sea puntual.");
+        }
+        toast("Aplicando " + label + "…");
+
+        Thread worker = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                final AutoSwitch.Result result = AutoSwitch.applyNow(
+                        getApplicationContext(), now);
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        showResultDialog(result, label, manualTest);
+                        refresh();
+                    }
+                });
+            }
+        }, "cuba-apply");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    private void showResultDialog(AutoSwitch.Result result, String label, boolean manualTest) {
+        String title;
+        String message;
+        switch (result) {
+            case APPLIED:
+                title = "Cambio aplicado";
+                message = "La zona del teléfono es ahora " + label + " y está verificada.\n\n"
+                        + "La transición del 7 de noviembre de 2027 se aplicará sola a la "
+                        + "01:00, siempre que Shizuku siga activo. Si se detiene, recibirás "
+                        + "un aviso para hacerlo en un toque.";
+                break;
+            case UNVERIFIED:
+                title = "Cambio sin verificar";
+                message = "Se envió la orden, pero el sistema no confirma " + label + ".\n\n"
+                        + "Revisa el estado en esta pantalla. Si sigue igual, usa los pasos "
+                        + "manuales del manual.";
+                break;
+            case NO_CHANNEL:
+                title = "Falta el canal privilegiado";
+                message = "Android no permite a una app instalada cambiar la zona por sí "
+                        + "sola. Para el cambio automático hace falta Shizuku "
+                        + "(" + AutoSwitch.channelStatus(this) + ").\n\n"
+                        + "Mientras tanto puedes aplicar " + label + " desde los ajustes.";
+                break;
+            default:
+                title = "No se pudo aplicar";
+                message = "Shizuku respondió con un error al ejecutar el cambio a " + label
+                        + ".\n\nPrueba de nuevo o usa los ajustes del sistema."
+                        + (manualTest ? "" : "");
+                break;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setMessage(message)
+                .setPositiveButton("Entendido", null)
+                .setNeutralButton(result == AutoSwitch.Result.APPLIED
+                        ? "Ver estado" : "Abrir ajustes", (dialog, which) -> {
+                    if (result == AutoSwitch.Result.APPLIED) {
+                        refresh();
+                    } else {
+                        ZoneController.openDateTimeSettings(MainActivity.this);
+                    }
+                })
+                .show();
+    }
+
+    /** Explica cómo habilitar el canal automático. */
+    private void showAutomationHelp() {
+        String status = AutoSwitch.channelStatus(this);
+        String message = "Estado: " + status + "\n\n"
+                + "El cambio automático necesita que esta app pueda ejecutar el comando "
+                + "de zona como el shell de Android. Shizuku presta ese permiso sin root:\n\n"
+                + "1. Instala Shizuku (Play Store o github.com/RikkaApps/Shizuku).\n"
+                + "2. Activa Opciones de desarrollador y Depuración inalámbrica.\n"
+                + "3. En Shizuku, «Emparejar» + «Iniciar» (y «Iniciar al arrancar» si "
+                + "quieres que siga tras reiniciar).\n"
+                + "4. Vuelve aquí y pulsa «Activar el cambio automático».\n\n"
+                + "Si prefieres no instalarlo, la app seguirá avisándote y podrás aplicar "
+                + "el cambio desde Ajustes en un minuto.";
+        new AlertDialog.Builder(this)
+                .setTitle("Cambio automático")
+                .setMessage(message)
+                .setPositiveButton("Abrir Shizuku", (dialog, which) -> {
+                    try {
+                        Intent intent = getPackageManager()
+                                .getLaunchIntentForPackage(ShizukuChannel.SHIZUKU_PACKAGE);
+                        if (intent != null) {
+                            startActivity(intent);
+                        } else {
+                            toast("Shizuku no está instalado en este teléfono.");
+                        }
+                    } catch (Throwable error) {
+                        toast("No se pudo abrir Shizuku.");
+                    }
+                })
+                .setNeutralButton("Instalar Shizuku", (dialog, which) -> {
+                    try {
+                        startActivity(new Intent(Intent.ACTION_VIEW,
+                                Uri.parse("https://github.com/RikkaApps/Shizuku/releases")));
+                    } catch (Throwable error) {
+                        toast("Abre github.com/RikkaApps/Shizuku en el navegador.");
+                    }
+                })
+                .setNegativeButton("Cerrar", null)
+                .show();
+    }
 
     private void showSteps() {
         long now = System.currentTimeMillis();

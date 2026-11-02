@@ -10,7 +10,28 @@ package com.yhquintero.cubahora2027;
  */
 public final class OffsetGuide {
 
+    /** Santo Domingo mantiene UTC-04:00 todo el año (sin horario de verano). */
+    public static final String ZONE_SUMMER = "America/Santo_Domingo";
+
+    /** Bogotá mantiene UTC-05:00 todo el año (sin horario de verano). */
+    public static final String ZONE_STANDARD = "America/Bogota";
+
     private OffsetGuide() {
+    }
+
+    /**
+     * Zona fija equivalente a un desfase de la regla.
+     * Se usan ciudades sin horario de verano para que el teléfono no se mueva
+     * por su cuenta entre transiciones.
+     */
+    public static String zoneIdFor(int minutes) {
+        if (minutes == CubaRules.OFFSET_SUMMER) {
+            return ZONE_SUMMER;
+        }
+        if (minutes == CubaRules.OFFSET_STANDARD) {
+            return ZONE_STANDARD;
+        }
+        return null;
     }
 
     /** Ciudad principal con desfase fijo igual al indicado, o {@code null}. */

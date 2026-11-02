@@ -13,7 +13,7 @@ Guía independiente para revisar una definición de zona horaria de Cuba en Wind
 | [`.reg/2_Cuba_2027_Correcto.reg`](.reg/2_Cuba_2027_Correcto.reg) | Perfil de Registro activo | Valores base y entradas `Dynamic DST` para 2026 y 2027. UTF-8. |
 | [`.reg/1_Limpiar.reg`](.reg/1_Limpiar.reg) | Limpieza avanzada, no instalación | Elimina por completo la subclave `Dynamic DST`; puede borrar reglas históricas. No es necesario para instalar ni revierte el perfil. |
 | [`index.html`](index.html) | Guía web | Explica el alcance y ofrece verificación SHA-256 local en el navegador. |
-| [`android/`](android/README.md) | Aplicación Android (APK) | Compara el desfase del teléfono con la regla del repositorio, indica la zona fija que hay que elegir en Ajustes y avisa antes de cada transición. |
+| [`android/`](android/README.md) | Aplicación Android (APK) | Aplica el cambio automáticamente en la transición con Shizuku; sin ese canal compara el desfase, indica la zona fija para Ajustes y avisa antes de cada transición. |
 | [`tools/render_screens.py`](tools/render_screens.py) | Generador de capturas | Reproduce la interfaz con las medidas del código y escribe `docs/capturas/`. |
 | [`tools/verify_registry.py`](tools/verify_registry.py) | Validador estático | Comprueba el alcance de los `.reg`, los TZI y su coherencia con los bytes y verificaciones estáticas de la aplicación. |
 | [`SECURITY.md`](SECURITY.md) | Seguridad | Precauciones, recuperación y límites de verificación. |
@@ -25,9 +25,10 @@ Los archivos de `.reg/Salvas/` son respaldos o referencias históricas; no son l
 La versión para teléfonos está en [`android/`](android/README.md) y se publica como APK firmado:
 
 - **Descarga:** [última release](https://github.com/yhquintero/Huso-Horario-Cuba-2026-2027/releases/latest) o la copia versionada en [`dist/`](dist/) con su `SHA256SUMS`.
-- **Compatibilidad:** paquete `com.yhquintero.cubahora2027`, Android 5.0 (API 21) o superior. Probado con el flujo de compilación para API 34; sirve para un Samsung Galaxy S22 y para otros móviles.
+- **Compatibilidad:** paquete `com.yhquintero.cubahora2027`, Android 6.0 (API 23) o superior. Probado con el flujo de compilación para API 34; sirve para un Samsung Galaxy S22 y para otros móviles.
 - **Qué muestra:** la zona activa, el desfase real, la hora local y la hora de Cuba según la regla de este repositorio (2026 completo en UTC−04:00; cambio a UTC−05:00 el 7 de noviembre de 2027 a la 01:00).
-- **Qué puedes hacer desde la app:** ver el desfase real frente al de la regla, abrir los ajustes de fecha y hora y leer los pasos exactos (zona a elegir, alternativas y valor GMT equivalente). Android reserva el cambio de zona a aplicaciones del sistema (`SET_TIME_ZONE` es `signature|privileged|role`), así que ninguna app instalada puede aplicarlo por su cuenta.
+- **Cambio automático:** con **Shizuku** instalado y autorizado una vez (sin root), un solo botón activa la automatización: el 7 de noviembre de 2027 a la 01:00 la app cambia la zona a UTC−05:00 sola y verifica el resultado. Android reserva `SET_TIME_ZONE` a las aplicaciones del sistema, así que Shizuku (que presta el canal del shell) es la única vía sin root.
+- **Sin Shizuku:** la app sigue mostrando el desfase real frente a la regla, abre los ajustes de fecha y hora y da los pasos exactos (zona a elegir, alternativas y valor GMT equivalente).
 - **Privacidad:** no pide INTERNET, no incluye rastreadores y no envía datos. Los recordatorios son notificaciones locales.
 - **Extras:** manual con las tres vías de aplicación (Ajustes, comando ADB sin root y zona automática), pasos adaptados a One UI, copia de comandos al portapapeles, recordatorios 7 días antes, 24 h antes y en el momento del cambio, y la guía completa sin conexión dentro de la app.
 - **Capturas:** [`docs/capturas/`](docs/capturas/) (inicio, tarjeta de la regla y manual).

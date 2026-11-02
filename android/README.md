@@ -1,23 +1,27 @@
 # Cuba Hora 2027 · aplicación Android
 
-App nativa de Android, sin dependencias externas, que compara el desfase real
-del teléfono con la regla horaria de Cuba de este repositorio y explica qué
-zona fija hay que elegir en los ajustes del sistema cuando no coinciden.
+App nativa de Android que compara el desfase real del teléfono con la regla
+horaria de Cuba de este repositorio y **aplica el cambio sola en la transición**
+si el usuario le concede el canal privilegiado de Shizuku. Sin ese canal explica
+qué zona fija elegir en los ajustes del sistema.
 
 ![Inicio de la app](../docs/capturas/01-inicio.png)
 
 - **APK publicado:** [`dist/`](../dist/) y la release de GitHub del proyecto.
 - **Paquete:** `com.yhquintero.cubahora2027`
-- **Android mínimo:** 5.0 (API 21). Compilado contra API 34.
-- **Tamaño:** menos de 1 MB. No pide INTERNET ni contiene rastreadores.
-- **Permisos:** solo notificaciones locales, aviso al reiniciar y alarmas
-  exactas opcionales. Ninguno de sistema.
+- **Android mínimo:** 6.0 (API 23, el mínimo de Shizuku). Compilado contra API 34.
+- **Tamaño:** ~112 KB. No pide INTERNET ni contiene rastreadores.
+- **Permisos:** notificaciones locales, aviso al reiniciar y alarmas exactas
+  opcionales. Ninguno de sistema.
+- **Dependencias:** solo `dev.rikka.shizuku:api` y `:provider`, fijadas a
+  `12.1.0` (el resto del código usa únicamente el framework de Android).
 
 ## Qué hace
 
 | Función | Detalle |
 |---|---|
 | Estado real | Lee la zona efectiva del sistema, su desfase, la hora local y el estado de la zona automática. |
+| **Cambio automático** | Un solo botón: activa el canal, arma las alarmas y aplica el desfase vigente. El **7/11/2027 a la 01:00** cambia a UTC−05:00 sin intervención y verifica el resultado con `getprop persist.sys.timezone`. |
 | Regla del proyecto | 2026 completo en UTC−04:00; el **7 de noviembre de 2027 a la 01:00** pasa a UTC−05:00. Sin más cambios definidos después. |
 | Comparación | Indica si el desfase del teléfono coincide con la regla o si queda pendiente, y avisa si la zona automática puede deshacer el ajuste. |
 | Ajuste guiado | Abre los ajustes de fecha y hora y muestra los pasos con la zona fija recomendada: **Santo Domingo** (UTC−04:00) o **Bogotá** (UTC−05:00), con alternativas y el valor GMT equivalente. Los pasos se pueden copiar. |
@@ -29,9 +33,9 @@ zona fija hay que elegir en los ajustes del sistema cuando no coinciden.
 
 | Pantalla | Archivo |
 |---|---|
-| Inicio, estado del teléfono | [`docs/capturas/01-inicio.png`](../docs/capturas/01-inicio.png) |
+| Inicio: estado y botón único | [`docs/capturas/01-inicio.png`](../docs/capturas/01-inicio.png) |
 | Tarjeta de la regla (detalle) | [`docs/capturas/02-regla-del-proyecto.png`](../docs/capturas/02-regla-del-proyecto.png) |
-| Manual de aplicación | [`docs/capturas/03-manual.png`](../docs/capturas/03-manual.png) |
+| Manual: vía automática con Shizuku | [`docs/capturas/03-manual.png`](../docs/capturas/03-manual.png) |
 
 Son renders generados por `tools/render_screens.py` a partir de las medidas, colores y
 textos del propio código (perfil Galaxy S22, 360 × 780 dp, densidad 3). No son capturas
@@ -39,11 +43,37 @@ de un teléfono real: sirven para documentar y revisar el diseño sin instalar e
 Para sustituirlas por capturas reales basta reemplazar los PNG por capturas de tu S22
 con el mismo nombre.
 
+## Cambio automático con Shizuku (un botón)
+
+El botón **«Activar el cambio automático»** hace todo en un toque:
+
+1. Comprueba el canal privilegiado y, si hace falta, pide autorización a Shizuku.
+2. Arma las alarmas de los avisos y de la transición del **7 de noviembre de 2027, 01:00**.
+3. Aplica el desfase vigente y **verifica** el resultado leyendo `persist.sys.timezone`.
+
+Requisitos (una sola vez): instalar [Shizuku](https://github.com/RikkaApps/Shizuku)
+(Play Store o GitHub), activar «Depuración inalámbrica» y pulsar *Emparejar* →
+*Iniciar* dentro de Shizuku. No requiere root. Si quieres que siga activo tras
+reiniciar, activa «Iniciar al arrancar» en Shizuku.
+
+Qué ejecuta exactamente, como shell (UID 2000):
+
+```bash
+settings put global auto_time_zone 0        # que la red no lo deshaga
+cmd alarm set-timezone America/Bogota       # cambio real (o Santo_Domingo)
+getprop persist.sys.timezone                # verificación
+```
+
+Si Shizuku no está disponible en el momento del cambio (por ejemplo tras un
+reinicio sin reanudarlo), la app **no inventa un éxito**: muestra una notificación
+con el resultado real («aplicado» o «pendiente») y los pasos para hacerlo a mano.
+
 ## Las tres formas de aplicar el cambio
 
 | Vía | Qué necesitas | Resultado |
 |---|---|---|
-| Ajustes del sistema | Solo el teléfono | Cambio manual en cada transición. Es la vía recomendada. |
+| **Automático (Shizuku)** | Instalar Shizuku y autorizar una vez | La app cambia la zona en la transición y verifica. |
+| Ajustes del sistema | Solo el teléfono | Cambio manual en cada transición. |
 | Comando por ADB | PC, cable y depuración USB (sin root) | Cambio inmediato y permanente, también tras reiniciar. |
 | Zona automática | Nada | La red decide; puede no seguir este calendario. |
 
@@ -59,7 +89,8 @@ adb shell cmd alarm set-timezone America/Havana
 
 `cmd alarm set-timezone` funciona porque el paquete del shell de Android
 (`com.android.shell`) declara `SET_TIME_ZONE` en su manifiesto; no hace falta root ni
-`pm grant`.
+`pm grant`. La app no puede pedir ese permiso: solo lo consigue *prestado* por
+Shizuku, y siempre con una autorización explícita del usuario.
 
 ## Por qué la app no cambia la zona por sí sola
 
