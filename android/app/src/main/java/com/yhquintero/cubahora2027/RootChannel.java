@@ -15,18 +15,33 @@ import java.io.InputStreamReader;
  * usuario tenga un gestor de root operativo y autorice la petición la primera
  * vez.</p>
  *
- * <p>En un teléfono sin root, {@code su} no existe y la comprobación falla en
- * milisegundos sin afectar a la app: se cae al aviso manual. La comprobación se
- * guarda en memoria ({@link #available()}) porque los canales se consultan
- * desde el hilo de interfaz.</p>
+ * <p>En un teléfono sin root, {@code su} no existe o espera una autorización
+ * que nunca llega: por eso la entrada estándar se cierra de inmediato y todo se
+ * ejecuta con un límite de tiempo. Así una comprobación fallida tarda segundos
+ * y nunca deja un proceso colgado.</p>
  */
 public final class RootChannel {
 
     private static final String TAG = "CubaHora";
-    private static final long TIMEOUT_MS = 6000L;
+
+    /** Límite por comando: si {@code su} no responde, se abandona. */
+    private static final long TIMEOUT_MS = 12000L;
+
+    /**
+     * Formas de invocar root. Los gestores no coinciden: Magisk y KernelSU
+     * aceptan {@code su -c}; otros usan {@code su 0 -c} o exigen el shell.
+     */
+    private static final String[][] VARIANTS = {
+            {"su", "-c"},
+            {"su", "0", "-c"},
+            {"su", "root", "-c"},
+    };
 
     /** Último resultado de {@link #probe()}: {@code null} = aún sin comprobar. */
     private static volatile Boolean available;
+
+    /** Variante de {@code su} que funcionó, para no repetir pruebas. */
+    private static volatile String[] working;
 
     private RootChannel() {
     }
@@ -44,6 +59,23 @@ public final class RootChannel {
     /** Olvida el resultado para volver a comprobarlo (p. ej. tras instalar root). */
     public static void forget() {
         available = null;
+        working = null;
+    }
+
+    /** Variante de {@code su} que respondió, o {@code null}. */
+    public static String variantName() {
+        String[] variant = working;
+        if (variant == null) {
+            return null;
+        }
+        StringBuilder name = new StringBuilder();
+        for (String part : variant) {
+            if (name.length() > 0) {
+                name.append(' ');
+            }
+            name.append(part);
+        }
+        return name.toString();
     }
 
     /**
@@ -65,38 +97,81 @@ public final class RootChannel {
         if (command == null || command.length == 0) {
             return null;
         }
-        StringBuilder script = new StringBuilder();
-        for (String part : command) {
-            if (script.length() > 0) {
-                script.append(' ');
+        String script = join(command);
+        String[] preferred = working;
+        if (preferred != null) {
+            ChannelOutput output = run(preferred, script);
+            if (output != null && output.ok()) {
+                return output;
             }
-            script.append(quote(part));
         }
+        ChannelOutput last = null;
+        for (String[] variant : VARIANTS) {
+            if (preferred != null && sameVariant(preferred, variant)) {
+                continue;
+            }
+            ChannelOutput output = run(variant, script);
+            if (output != null && output.ok()) {
+                working = variant;
+                return output;
+            }
+            if (output != null) {
+                last = output;
+            }
+        }
+        return last;
+    }
+
+    /**
+     * Ejecuta un comando ya armado (sin argumentos separados), útil para
+     * cadenas con redirecciones.
+     */
+    public static ChannelOutput shell(String command) {
+        if (command == null || command.trim().length() == 0) {
+            return null;
+        }
+        return exec(command.trim());
+    }
+
+    private static ChannelOutput run(String[] variant, String script) {
         Process process = null;
         try {
-            process = Runtime.getRuntime().exec(
-                    new String[]{"su", "-c", script.toString()});
-            StringBuilder out = new StringBuilder();
-            StringBuilder err = new StringBuilder();
+            String[] argv = new String[variant.length + 1];
+            System.arraycopy(variant, 0, argv, 0, variant.length);
+            argv[variant.length] = script;
+            process = Runtime.getRuntime().exec(argv);
 
-            final InputStream errorStream = process.getErrorStream();
-            final StringBuilder errorBuilder = err;
-            Thread errorReader = new Thread(new Runnable() {
+            // Sin esto, un su que espera confirmación se queda colgado.
+            try {
+                process.getOutputStream().close();
+            } catch (Throwable ignored) {
+                // La entrada ya estaba cerrada.
+            }
+
+            final StringBuilder out = new StringBuilder();
+            final StringBuilder err = new StringBuilder();
+            final InputStream stdout = process.getInputStream();
+            final InputStream stderr = process.getErrorStream();
+            Thread outReader = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    drain(errorStream, errorBuilder);
+                    drain(stdout, out);
                 }
-            });
-            errorReader.setDaemon(true);
-            errorReader.start();
+            }, "cuba-su-out");
+            Thread errReader = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    drain(stderr, err);
+                }
+            }, "cuba-su-err");
+            outReader.setDaemon(true);
+            errReader.setDaemon(true);
+            outReader.start();
+            errReader.start();
 
-            drain(process.getInputStream(), out);
             int code = waitFor(process, TIMEOUT_MS);
-            try {
-                errorReader.join(1000L);
-            } catch (InterruptedException ignored) {
-                Thread.currentThread().interrupt();
-            }
+            joinQuietly(outReader);
+            joinQuietly(errReader);
             return new ChannelOutput(code, out.toString().trim(), err.toString().trim());
         } catch (Throwable error) {
             Log.w(TAG, "su no está disponible en este teléfono", error);
@@ -110,6 +185,29 @@ public final class RootChannel {
                 }
             }
         }
+    }
+
+    private static boolean sameVariant(String[] left, String[] right) {
+        if (left.length != right.length) {
+            return false;
+        }
+        for (int index = 0; index < left.length; index++) {
+            if (!left[index].equals(right[index])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static String join(String[] command) {
+        StringBuilder script = new StringBuilder();
+        for (String part : command) {
+            if (script.length() > 0) {
+                script.append(' ');
+            }
+            script.append(quote(part));
+        }
+        return script.toString();
     }
 
     /** Entrecomilla un argumento para el shell remoto de {@code su -c}. */
@@ -142,6 +240,14 @@ public final class RootChannel {
         }
     }
 
+    private static void joinQuietly(Thread thread) {
+        try {
+            thread.join(1500L);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
     private static int waitFor(Process process, long timeoutMillis) {
         long deadline = System.currentTimeMillis() + timeoutMillis;
         while (System.currentTimeMillis() < deadline) {
@@ -157,6 +263,11 @@ public final class RootChannel {
             } catch (Throwable error) {
                 return -1;
             }
+        }
+        try {
+            process.destroy();
+        } catch (Throwable ignored) {
+            // Sin proceso que destruir.
         }
         return -1;
     }

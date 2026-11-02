@@ -24,7 +24,7 @@ fija elegir en los ajustes del sistema.
 | Estado real | Lee la zona efectiva del sistema, su desfase, la hora local y el estado de la zona automática. |
 | **Cambio automático** | Bloque propio en la tarjeta de estado: valor corto («Desactivado») y el detalle del canal debajo, sin partir el texto. |
 | **Perfil Cuba 2026-2027** | Un botón lo instala: activa el canal, arma las alarmas y aplica el desfase vigente. El **7/11/2027 a la 01:00** cambia a UTC−05:00 sin intervención y verifica el resultado con `getprop persist.sys.timezone`. |
-| **Más opciones para activarlo** | Canales alternativos en la misma pantalla: Shizuku, root (`su`), comandos para ADB y ajuste manual en Ajustes. |
+| **Más opciones para activarlo** | Canales alternativos en la misma pantalla: Shizuku, root (`su`), comandos para ADB, ajuste manual y **diagnóstico** con informe copiable. |
 | Regla del proyecto | 2026 completo en UTC−04:00; el **7 de noviembre de 2027 a la 01:00** pasa a UTC−05:00. Sin más cambios definidos después. |
 | Comparación | Indica si el desfase del teléfono coincide con la regla o si queda pendiente, y avisa si la zona automática puede deshacer el ajuste. |
 | Ajuste guiado | Abre los ajustes de fecha y hora y muestra los pasos con la zona fija recomendada: **Santo Domingo** (UTC−04:00) o **Bogotá** (UTC−05:00), con alternativas y el valor GMT equivalente. Los pasos se pueden copiar. |
@@ -69,8 +69,16 @@ La tarjeta del perfil deja claro el tramo que cubre: **del 01/11/2026 al
 | **Manual** | Solo el teléfono | «Ajustar a mano en Ajustes» con la zona fija recomendada |
 
 Con Shizuku conviene activar «Iniciar al arrancar» para que el canal siga vivo
-después de reiniciar; con root, el cambio funciona tras reiniciar siempre que el
-gestor conceda `su` sin preguntar.
+después de reiniciar; con root, depende del gestor. Si el cambio no se aplica,
+la tarjeta «Más opciones» tiene el botón «Diagnosticar por qué no cambia», que
+muestra el desfase, las zonas, el estado de cada canal y el resultado de la
+prueba real, listo para copiar.
+
+> El perfil **Cuba 2026-2027** no aparece como nombre nuevo en la lista de zonas
+> del sistema: Android guarda sus zonas en la partición del sistema y solo una
+> app del sistema puede añadir entradas. El perfil hace lo equivalente: pone la
+> zona fija correcta y la cambia sola con verificación. El diálogo «sin canal» lo
+> explica así, sin prometer lo que no puede hacer.
 
 Qué ejecuta exactamente, como shell (UID 2000):
 

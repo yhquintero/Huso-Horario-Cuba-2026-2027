@@ -3,6 +3,8 @@ package com.yhquintero.cubahora2027;
 import android.content.Context;
 import android.util.Log;
 
+import java.util.TimeZone;
+
 /**
  * Cambio automático de la zona horaria en las transiciones de la regla.
  *
@@ -12,10 +14,9 @@ import android.util.Log;
  * la alarma de la transición y, al dispararse, aplica el desfase nuevo sin
  * intervención.</p>
  *
- * <p>Se usa el primer canal disponible: Shizuku si está autorizado y, si no,
- * root. Sin ninguno de los dos no se aplica nada: la app avisa con los pasos
- * manuales y nunca informa de un cambio que no ha verificado leyendo
- * {@code getprop persist.sys.timezone}.</p>
+ * <p>El cambio se intenta con varias órdenes de reserva y, después de cada una,
+ * se lee la zona del sistema. Solo se informa de «aplicado» cuando la lectura
+ * coincide: la app nunca supone que el cambio ocurrió.</p>
  */
 public final class AutoSwitch {
 
@@ -25,6 +26,10 @@ public final class AutoSwitch {
     public static final String KEY_LAST_RESULT = "last_result";
 
     private static final String TAG = "CubaHora";
+
+    /** Intentos de lectura de la zona tras aplicar (la red puede tardar). */
+    private static final int VERIFY_ATTEMPTS = 10;
+    private static final long VERIFY_PAUSE_MS = 250L;
 
     /** Resultado de intentar aplicar la regla. */
     public enum Result {
@@ -36,6 +41,25 @@ public final class AutoSwitch {
         NO_CHANNEL,
         /** El canal falló al ejecutar el comando. */
         FAILED
+    }
+
+    /** Resultado con el detalle de qué orden funcionó. */
+    public static final class Outcome {
+        public final Result result;
+        /** Orden que verificó el cambio, o la que se intentó al final. */
+        public final String strategy;
+        /** Zona leída del sistema tras aplicar, o el error del canal. */
+        public final String detail;
+
+        Outcome(Result result, String strategy, String detail) {
+            this.result = result;
+            this.strategy = strategy == null ? "" : strategy;
+            this.detail = detail == null ? "" : detail;
+        }
+
+        public boolean applied() {
+            return result == Result.APPLIED;
+        }
     }
 
     private AutoSwitch() {
@@ -173,6 +197,25 @@ public final class AutoSwitch {
         }
     }
 
+    /** Zona que ve esta app, leída por el framework (sin privilegios). */
+    public static String appZone() {
+        try {
+            return TimeZone.getDefault().getID();
+        } catch (Throwable error) {
+            return "?";
+        }
+    }
+
+    /**
+     * ¿El teléfono ya está en la zona que exige la regla? Se comprueba por el
+     * desfase efectivo, no por el nombre: cualquier zona con el mismo desfase
+     * fijo sirve.
+     */
+    public static boolean inSync(Context context, long epochMillis) {
+        return ZoneController.currentOffsetMinutes(epochMillis)
+                == CubaRules.offsetMinutes(epochMillis);
+    }
+
     // ------------------------------------------------------------------
     // Aplicación
     // ------------------------------------------------------------------
@@ -184,47 +227,108 @@ public final class AutoSwitch {
      * salida. Devuelve el resultado y deja constancia en las preferencias.</p>
      */
     public static Result applyNow(Context context, long epochMillis) {
-        int required = CubaRules.offsetMinutes(epochMillis);
-        return applyOffset(context, required);
+        return applyOffset(context, CubaRules.offsetMinutes(epochMillis));
+    }
+
+    /** Igual que {@link #applyNow}, con el detalle de la orden que funcionó. */
+    public static Outcome applyNowDetailed(Context context, long epochMillis) {
+        return applyOffsetDetailed(context, CubaRules.offsetMinutes(epochMillis));
     }
 
     /** Aplica un desfase concreto (en minutos respecto a UTC). */
     public static Result applyOffset(Context context, int offsetMinutes) {
-        String zoneId = OffsetGuide.zoneIdFor(offsetMinutes);
-        if (zoneId == null) {
-            return record(context, Result.FAILED, "desfase sin zona fija asociada");
-        }
-        if (!canApplyNow(context)) {
-            return record(context, Result.NO_CHANNEL, channelStatus(context));
-        }
-
-        // 1. La zona automática deshace el ajuste en cuanto la red responde.
-        exec("settings", "put", "global", "auto_time_zone", "0");
-
-        // 2. Cambio real: el shell (o root) tiene SET_TIME_ZONE, la app no.
-        ChannelOutput applied = exec("cmd", "alarm", "set-timezone", zoneId);
-        if (applied == null) {
-            return record(context, Result.FAILED, "ningún canal respondió");
-        }
-        if (!applied.ok()) {
-            Log.w(TAG, "set-timezone falló: " + applied.describe());
-            return record(context, Result.FAILED, applied.describe());
-        }
-
-        // 3. Verificación con la fuente de verdad del sistema.
-        String active = readSystemZone();
-        if (zoneId.equals(active)) {
-            return record(context, Result.APPLIED, zoneId);
-        }
-        Log.w(TAG, "zona leída tras aplicar: " + active);
-        return record(context, Result.UNVERIFIED, String.valueOf(active));
+        return applyOffsetDetailed(context, offsetMinutes).result;
     }
 
-    private static Result record(Context context, Result result, String detail) {
+    /**
+     * Aplica el desfase probando varias órdenes del sistema, de la más limpia a
+     * la más directa, y verificando después de cada una.
+     */
+    public static Outcome applyOffsetDetailed(Context context, int offsetMinutes) {
+        String zoneId = OffsetGuide.zoneIdFor(offsetMinutes);
+        if (zoneId == null) {
+            return record(context, Result.FAILED, "",
+                    "desfase sin zona fija asociada");
+        }
+        if (!canApplyNow(context)) {
+            return record(context, Result.NO_CHANNEL, "", channelStatus(context));
+        }
+
+        // 0. Que la red no deshaga el ajuste en cuanto responda.
+        exec("settings", "put", "global", "auto_time_zone", "0");
+
+        // Las órdenes se prueban en orden; la primera que se verifique gana.
+        String[][] strategies = {
+                {"cmd", "alarm", "set-timezone", zoneId},
+                {"setprop", "persist.sys.timezone", zoneId},
+                {"settings", "put", "global", "time_zone", zoneId},
+        };
+        String[] names = {
+                "cmd alarm set-timezone",
+                "setprop persist.sys.timezone",
+                "settings put global time_zone",
+        };
+
+        String lastError = "";
+        for (int index = 0; index < strategies.length; index++) {
+            ChannelOutput output = exec(strategies[index]);
+            if (output == null) {
+                lastError = "el canal no respondió";
+                continue;
+            }
+            if (!output.ok()) {
+                lastError = names[index] + ": " + output.describe();
+                Log.w(TAG, lastError);
+            }
+            String active = verify(zoneId);
+            if (matches(zoneId, active)) {
+                return record(context, Result.APPLIED, names[index], active);
+            }
+            lastError = names[index] + " no cambió la zona (leída: "
+                    + (active == null ? "sin lectura" : active) + ")";
+            Log.w(TAG, lastError);
+        }
+
+        // Última comprobación antes de rendirse.
+        String active = readSystemZone();
+        if (matches(zoneId, active)) {
+            return record(context, Result.APPLIED, "verificación final", active);
+        }
+        if (active != null && active.length() > 0) {
+            return record(context, Result.UNVERIFIED, "", active);
+        }
+        return record(context, Result.FAILED, "", lastError);
+    }
+
+    /** Reintenta la lectura unos instantes: el sistema aplica sin prisa. */
+    private static String verify(String zoneId) {
+        String active = readSystemZone();
+        for (int attempt = 0; attempt < VERIFY_ATTEMPTS; attempt++) {
+            if (matches(zoneId, active)) {
+                return active;
+            }
+            try {
+                Thread.sleep(VERIFY_PAUSE_MS);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+            active = readSystemZone();
+        }
+        return active;
+    }
+
+    /** La zona pedida puede ser la del sistema o la que ve el framework. */
+    private static boolean matches(String zoneId, String active) {
+        return zoneId.equals(active) || zoneId.equals(appZone());
+    }
+
+    private static Outcome record(Context context, Result result, String strategy,
+                                  String detail) {
         prefs(context).edit()
                 .putString(KEY_LAST_RESULT, result.name() + ":" + detail)
                 .apply();
-        return result;
+        return new Outcome(result, strategy, detail);
     }
 
     // ------------------------------------------------------------------

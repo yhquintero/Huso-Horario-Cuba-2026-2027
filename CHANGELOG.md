@@ -2,6 +2,15 @@
 
 Los cambios de este proyecto se anotan aquí para facilitar la revisión de los perfiles y de la guía.
 
+## 2026-11-02 · Android 1.5.0: el perfil Cuba 2026-2027 explicado y diagnóstico
+
+- El perfil Cuba 2026-2027 ya explica en la app por qué no aparece como nombre nuevo en la lista del sistema (solo una app de sistema puede añadir zonas) y qué hace en su lugar: la zona fija equivalente con cambio automático verificado.
+- `AutoSwitch` prueba tres órdenes del sistema por intento y verifica con `getprop persist.sys.timezone` en hasta 10 lecturas; registra la orden que funcionó.
+- `RootChannel` compatible con Magisk/KernelSU y otros gestores: prueba `su -c`, `su 0 -c` y `su root -c`, cierra la entrada, espera 12 s y reutiliza la variante que funcionó.
+- Nuevo `Diagnostics` y botón «Diagnosticar por qué no cambia»: informe con estado, canales, prueba real y qué hacer, copiable.
+- `MainActivity` usa el resultado detallado: «aplicado» solo si se verifica, y acceso directo al diagnóstico en cada error.
+- Capturas actualizadas (inicio y más opciones con el botón de diagnóstico) y versión 1.5.0 (versionCode 6).
+
 ## 2026-11-01 · Android 1.4.0: perfil Cuba 2026-2027 y más canales
 
 - La tarjeta de estado deja de partir el texto del cambio automático: el valor corto va en su propia línea y el detalle del canal debajo.

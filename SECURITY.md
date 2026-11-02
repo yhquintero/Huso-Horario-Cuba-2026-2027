@@ -24,11 +24,12 @@ El APK se instala fuera de Play Store. Descárgalo solo desde la release de este
 - La app **no declara INTERNET**, bloquea el tráfico en claro y no incluye bibliotecas de terceros ni rastreadores.
 - No solicita permisos peligrosos: ni ubicación, ni contactos, ni almacenamiento, ni teléfono.
 - **Dependencias:** solo `dev.rikka.shizuku:api` y `dev.rikka.shizuku:provider`, fijadas a `12.1.0`. Añaden un proveedor (`rikka.shizuku.ShizukuProvider`) protegido con `INTERACT_ACROSS_USERS_FULL` y el permiso de cliente `moe.shizuku.manager.permission.API_V23`; ninguno concede acceso por sí solo.
-- **Cambio automático:** la app no puede cambiar la zona por sí misma. Usa el primer canal disponible:
-  - **Shizuku**: con autorización explícita del usuario, ejecuta como shell (UID 2000) los comandos de la lista siguiente. La autorización se revoca en Shizuku y la app deja de poder aplicarla.
-  - **Root**: si el teléfono tiene root y el usuario pulsa «Activar con root», ejecuta `su -c` con los mismos comandos. El permiso lo controla el gestor de root del teléfono.
-  - Comandos, idénticos en ambos canales: `settings put global auto_time_zone 0`, `cmd alarm set-timezone <zona>` y `getprop persist.sys.timezone` (este último no necesita privilegios y es la verificación).
-  - Shizuku es software de terceros: su seguridad depende de su propio proyecto, no de este repositorio. La app no obtiene root por sí sola ni lo pide sin que el usuario pulse el botón.
+- **Cambio automático:** la app no puede cambiar la zona por sí misma. Usa el primer canal disponible y nunca informa de un éxito sin verificarlo con `getprop persist.sys.timezone`:
+  - **Shizuku**: con autorización explícita del usuario, ejecuta como shell (UID 2000) los comandos abajo. La autorización se revoca en Shizuku.
+  - **Root**: si el teléfono tiene root y el usuario pulsa «Activar con root», ejecuta `su -c` (prueba `su`, `su 0` y `su root`) con los mismos comandos. El permiso lo controla el gestor de root; la app cierra la entrada y espera 12 s para no colgarse.
+  - Comandos por intento, en orden: `cmd alarm set-timezone <zona>`, `setprop persist.sys.timezone <zona>`, `settings put global time_zone <zona>`; antes siempre `settings put global auto_time_zone 0`. La verificación no necesita privilegios.
+  - **Diagnóstico**: el botón «Diagnosticar por qué no cambia» genera un informe local (sin red) con estado, canales y resultado de la prueba, copiable.
+  - Shizuku es de terceros: su seguridad depende de su proyecto. La app no obtiene root sola ni lo pide sin pulsar el botón.
 - No declara permisos de sistema: ni `SET_TIME_ZONE` ni `WRITE_SECURE_SETTINGS`. En AOSP, `SET_TIME_ZONE` es `signature|privileged|role` (solo aplicaciones del sistema o del fabricante) y `WRITE_SECURE_SETTINGS` no sirve para cambiar la zona, porque `SettingsProvider` no aplica `time_zone`. La app se limita a leer el estado y a abrir los ajustes del sistema; no pide credenciales ni ejecuta comandos.
 - La identidad de firma es **pública y versionada** en `android/keystore/`. No protege secretos: su función es que Android acepte actualizaciones sobre la misma instalación. La confianza debe basarse en el código fuente y en el SHA-256 publicado, no en la firma.
 - La app no modifica la base de datos de zonas horarias del sistema (`tzdata`), no cambia la hora del reloj y no intenta eludir restricciones del fabricante.

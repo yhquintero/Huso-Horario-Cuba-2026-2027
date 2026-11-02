@@ -395,7 +395,7 @@
             </li>
             <li class="install-step">
               <span class="step-number">04</span>
-              <div><h3>Perfil Cuba 2026-2027</h3><p>La app instala el perfil <strong>Cuba 2026-2027</strong>: del 01/11/2026 al 07/11/2027 en UTC−04:00 y, desde el 7 de noviembre de 2027 a la 01:00, UTC−05:00. Android reserva <code>SET_TIME_ZONE</code> a las aplicaciones del sistema, así que el cambio automático usa un canal: <strong>Shizuku</strong> (sin root), <strong>root</strong>, comandos de <strong>ADB</strong> o ajuste manual. Con un botón se instala el perfil, se arma la alarma y se comprueba el resultado con <code>getprop persist.sys.timezone</code>.</p></div>
+              <div><h3>Perfil Cuba 2026-2027</h3><p>La app instala el perfil <strong>Cuba 2026-2027</strong>: del 01/11/2026 al 07/11/2027 en UTC−04:00 y, desde el 7 de noviembre de 2027 a la 01:00, UTC−05:00. Android no deja añadir un nombre nuevo en la lista de zonas sin modificar el sistema: el perfil pone la zona fija equivalente (<code>America/Santo_Domingo</code> / <code>America/Bogota</code>) y la cambia solo cuando toca. El cambio automático usa el primer canal disponible —<strong>Shizuku</strong> (sin root), <strong>root</strong>, <strong>ADB</strong> o ajuste manual— y lo verifica con <code>getprop persist.sys.timezone</code>; si no se aplica, el botón «Diagnosticar por qué no cambia» explica dónde se rompió la cadena.</p></div>
             </li>
             <li class="install-step">
               <span class="step-number">05</span>
